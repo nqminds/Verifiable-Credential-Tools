@@ -1,0 +1,13 @@
+[package]
+name = "vc_signing"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+base64 = "0.22.1"
+serde = {version = "1.0.204", features = ["derive"]}
+serde_json = "1.0.120"
+ring = {version = "0.17.8", features = ["wasm32_unknown_unknown_js"]}
+chrono = "0.4.38"
