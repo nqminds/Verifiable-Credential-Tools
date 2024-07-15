@@ -1,51 +1,56 @@
 use base64::{prelude::BASE64_STANDARD, Engine};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use ring::signature::{
     EcdsaKeyPair, KeyPair, UnparsedPublicKey, ECDSA_P256_SHA256_ASN1,
     ECDSA_P256_SHA256_ASN1_SIGNING,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{from_str, to_string};
+use serde_json::{from_str, to_string, Value};
 use std::fs::{read, write};
 use std::io::{stdin, Read};
+use url::Url;
+use uuid::Uuid;
+
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+enum ID {
+    Uuid(Uuid),
+    Url(Url),
+}
 
 #[derive(Serialize, Deserialize)]
 struct VerifiableCredential {
     #[serde(rename = "@context")]
-    context: Vec<String>,
-    id: String,
+    context: Vec<Url>,
+    id: ID,
     #[serde(rename = "type")]
     vc_type: Vec<String>,
     #[serde(rename = "credentialSubject")]
-    credential_subject: CredentialSubject,
+    credential_subject: Value,
+    #[serde(rename = "credentialSchema")]
+    credential_schema: CredentialSchema,
     issuer: String,
-    #[serde(rename = "issuerDate")]
-    issuer_date: String,
+    #[serde(rename = "issuanceDate")]
+    issuance_date: DateTime<Utc>,
     proof: Option<Proof>,
 }
 
 #[derive(Serialize, Deserialize)]
-struct CredentialSubject {
-    #[serde(rename = "systemId")]
-    system_id: String,
-    #[serde(rename = "systemName")]
-    system_name: String,
-    #[serde(rename = "systemVersion")]
-    system_version: String,
-    #[serde(rename = "systemCheck")]
-    system_check: String,
-    #[serde(rename = "dateTime")]
-    date_time: String,
+struct CredentialSchema {
+    id: ID,
+    #[serde(rename = "type")]
+    credential_type: String,
+    jws: String,
 }
 
 #[derive(Serialize, Deserialize)]
 struct Proof {
     #[serde(rename = "type")]
     proof_type: String,
-    created: String,
     jws: String,
     #[serde(rename = "proofPurpose")]
     proof_purpose: String,
+    created: DateTime<Utc>,
 }
 
 fn main() {
@@ -69,7 +74,7 @@ fn main() {
                         .unwrap();
                     let proof = Proof {
                         proof_type: "JsonWebSignature2020".to_string(),
-                        created: Utc::now().to_string(),
+                        created: Utc::now(),
                         jws: BASE64_STANDARD.encode(jws.as_ref()),
                         proof_purpose: "assertionMethod".to_string(),
                     };

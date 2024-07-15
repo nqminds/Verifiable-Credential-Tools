@@ -10,4 +10,6 @@ base64 = "0.22.1"
 serde = {version = "1.0.204", features = ["derive"]}
 serde_json = "1.0.120"
 ring = {version = "0.17.8", features = ["wasm32_unknown_unknown_js"]}
-chrono = "0.4.38"
+chrono = {version = "0.4.38", features = ["serde"]}
+url = {version = "2.5.2", features = ["serde"]}
+uuid = {version = "1.10.0", features = ["serde"]}
