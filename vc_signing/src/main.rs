@@ -131,8 +131,9 @@ fn main() {
         }
         _ => {
             println!(
-                "Usage:\nverifiable_credentials -sign key_path|-verify key_path|-genkeys \
-                [private_key_path public_key_path]"
+                "Usage: verifiable_credentials -sign key_path|-verify key_path|-genkeys \
+                [private_key_path public_key_path]\nVCs are supplied to stdin \
+                (either pasted or piped), signed and returned on stdout"
             );
         }
     }
