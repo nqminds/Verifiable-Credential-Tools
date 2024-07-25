@@ -6,7 +6,7 @@ use ring::signature::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{from_str, to_string, Value};
-use std::io::{stdin, ErrorKind, Read};
+use std::io::ErrorKind;
 use url::Url;
 use uuid::Uuid;
 
@@ -74,11 +74,12 @@ pub fn sign(
     Ok(to_string(&vc)?)
 }
 
-pub fn verify(public_key: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+pub fn verify(
+    public_key: &[u8],
+    verifiable_credential: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let public_key = UnparsedPublicKey::new(&ECDSA_P256_SHA256_ASN1, public_key);
-    let mut buffer = String::new();
-    stdin().read_to_string(&mut buffer)?;
-    let mut vc: VerifiableCredential = from_str(&buffer)?;
+    let mut vc: VerifiableCredential = from_str(verifiable_credential)?;
     let jws = vc.proof.take().ok_or("Proof partially moved")?.jws;
     Ok(public_key
         .verify(

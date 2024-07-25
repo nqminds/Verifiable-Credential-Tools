@@ -1,5 +1,5 @@
 use std::fs::{read, write};
-use std::io::{Read, stdin};
+use std::io::{stdin, Read};
 
 fn main() {
     let mut args = std::env::args();
@@ -20,7 +20,9 @@ fn main() {
         Some("-verify") => {
             if let Some(path) = args.next() {
                 if let Ok(contents) = read(path) {
-                    println!("{:?}", vc_signing::verify(&contents));
+                    let mut buffer = String::new();
+                    stdin().read_to_string(&mut buffer).unwrap();
+                    println!("{:?}", vc_signing::verify(&contents, &buffer));
                 } else {
                     eprintln!("Invalid key");
                 }
@@ -30,8 +32,16 @@ fn main() {
         }
         Some("-genkeys") => {
             let (private_key, public_key) = vc_signing::genkeys().unwrap();
-            write(args.next().unwrap_or(String::from("private_key")), private_key).unwrap();
-            write(args.next().unwrap_or(String::from("public_key")), public_key).unwrap();
+            write(
+                args.next().unwrap_or(String::from("private_key")),
+                private_key,
+            )
+            .unwrap();
+            write(
+                args.next().unwrap_or(String::from("public_key")),
+                public_key,
+            )
+            .unwrap();
         }
         _ => {
             println!(
