@@ -1,8 +1,8 @@
-use base64::{Engine, prelude::BASE64_STANDARD};
+use base64::{prelude::BASE64_STANDARD, Engine};
 use chrono::{DateTime, Utc};
 use ring::signature::{
-    ECDSA_P256_SHA256_ASN1, ECDSA_P256_SHA256_ASN1_SIGNING, EcdsaKeyPair, KeyPair,
-    UnparsedPublicKey,
+    EcdsaKeyPair, KeyPair, UnparsedPublicKey, ECDSA_P256_SHA256_ASN1,
+    ECDSA_P256_SHA256_ASN1_SIGNING,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{from_str, to_string, Value};
@@ -35,14 +35,14 @@ struct VerifiableCredential {
 #[serde(untagged)]
 enum TypeEnum {
     Single(String),
-    Multiple(Vec<String>)
+    Multiple(Vec<String>),
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
 enum StatusEnum {
     Single(CredentialStatus),
-    Multiple(Vec<CredentialStatus>)
+    Multiple(Vec<CredentialStatus>),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -56,7 +56,7 @@ struct CredentialStatus {
 #[serde(untagged)]
 enum SchemaEnum {
     Single(CredentialSchema),
-    Multiple(Vec<CredentialSchema>)
+    Multiple(Vec<CredentialSchema>),
 }
 
 #[derive(Serialize, Deserialize)]
