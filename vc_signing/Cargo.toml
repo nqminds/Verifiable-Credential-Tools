@@ -9,7 +9,6 @@ edition = "2021"
 base64 = "0.22.1"
 serde = {version = "1.0.204", features = ["derive"]}
 serde_json = "1.0.120"
-serde_yaml = "0.9.34+deprecated"
 #ring = {version = "0.17.8", features = ["wasm32_unknown_unknown_js"]}
 ring = "0.17.8"
 chrono = {version = "0.4.38", features = ["serde"]}

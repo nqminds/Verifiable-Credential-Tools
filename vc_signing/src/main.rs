@@ -1,32 +1,47 @@
-use std::fs::{read, read_to_string, write};
+use std::fs::{read, write};
+use std::io::{stdin, Read};
 
 fn main() {
     let mut args = std::env::args();
     match args.nth(1).as_deref() {
         Some("-sign") => {
-            println!(
-                "{}",
-                vc_signing::sign(
-                    &read(args.next().unwrap()).unwrap(),
-                    &read_to_string(args.next().unwrap()).unwrap(),
-                    &read_to_string(args.next().unwrap()).unwrap()
-                )
-                .unwrap()
-            );
+            if let Some(path) = args.next() {
+                if let Ok(contents) = read(path) {
+                    let mut buffer = String::new();
+                    stdin().read_to_string(&mut buffer).unwrap();
+                    println!("{}", vc_signing::sign(&contents, &buffer).unwrap());
+                } else {
+                    eprintln!("Invalid key");
+                }
+            } else {
+                eprintln!("Missing key arg");
+            }
         }
         Some("-verify") => {
-            println!(
-                "{:?}",
-                vc_signing::verify(
-                    &read(args.next().unwrap()).unwrap(),
-                    &read_to_string(args.next().unwrap()).unwrap()
-                )
-            );
+            if let Some(path) = args.next() {
+                if let Ok(contents) = read(path) {
+                    let mut buffer = String::new();
+                    stdin().read_to_string(&mut buffer).unwrap();
+                    println!("{:?}", vc_signing::verify(&contents, &buffer));
+                } else {
+                    eprintln!("Invalid key");
+                }
+            } else {
+                eprintln!("Missing key arg");
+            }
         }
         Some("-genkeys") => {
-            let (priv_key, pub_key) = vc_signing::genkeys().unwrap();
-            write(args.next().unwrap_or("private_key".to_string()), priv_key).unwrap();
-            write(args.next().unwrap_or("public_key".to_string()), pub_key).unwrap();
+            let (private_key, public_key) = vc_signing::genkeys().unwrap();
+            write(
+                args.next().unwrap_or(String::from("private_key")),
+                private_key,
+            )
+            .unwrap();
+            write(
+                args.next().unwrap_or(String::from("public_key")),
+                public_key,
+            )
+            .unwrap();
         }
         _ => {
             println!(
