@@ -7,6 +7,7 @@ use ring::signature::{
 use serde::{Deserialize, Serialize};
 use serde_json::{from_str, to_string, Value};
 use url::Url;
+use wasm_bindgen::prelude::wasm_bindgen;
 
 #[derive(Serialize, Deserialize)]
 struct VerifiableCredential {
@@ -76,19 +77,24 @@ struct Proof {
     created: DateTime<Utc>,
 }
 
+#[wasm_bindgen]
 pub fn sign(
     private_key: &[u8],
     verifiable_credential: &str,
     _schema: &str, // TODO validate schema
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<String, String> {
     let random = ring::rand::SystemRandom::new();
     let private_key =
         EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, private_key, &random)
-            .map_err(|_| "KeyRejected")?;
-    let mut vc: VerifiableCredential = from_str(verifiable_credential)?;
+            .map_err(|e| e.to_string())?;
+    let mut vc: VerifiableCredential =
+        from_str(verifiable_credential).map_err(|e| e.to_string())?;
     let jws = private_key
-        .sign(&random, to_string(&vc)?.as_bytes())
-        .map_err(|_| "SigningError")?;
+        .sign(
+            &random,
+            to_string(&vc).map_err(|e| e.to_string())?.as_bytes(),
+        )
+        .map_err(|e| e.to_string())?;
     let proof = Proof {
         proof_type: "JsonWebSignature2020".to_string(),
         created: Utc::now(),
@@ -96,36 +102,55 @@ pub fn sign(
         proof_purpose: "assertionMethod".to_string(),
     };
     vc.proof = Some(proof);
-    Ok(to_string(&vc)?)
+    to_string(&vc).map_err(|e| e.to_string())
 }
 
-pub fn verify(
-    public_key: &[u8],
-    verifiable_credential: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+#[wasm_bindgen]
+pub fn verify(public_key: &[u8], verifiable_credential: &str) -> Result<(), String> {
     let public_key = UnparsedPublicKey::new(&ECDSA_P256_SHA256_ASN1, public_key);
-    let mut vc: VerifiableCredential = from_str(verifiable_credential)?;
+    let mut vc: VerifiableCredential =
+        from_str(verifiable_credential).map_err(|e| e.to_string())?;
     let jws = vc.proof.take().ok_or("VC is unsigned")?.jws;
-    Ok(public_key
+    public_key
         .verify(
-            to_string(&vc)?.as_bytes(),
-            BASE64_STANDARD.decode(jws)?.as_slice(),
+            to_string(&vc).map_err(|e| e.to_string())?.as_bytes(),
+            BASE64_STANDARD
+                .decode(jws)
+                .map_err(|e| e.to_string())?
+                .as_slice(),
         )
-        .map_err(|_| "VerifyingError")?)
+        .map_err(|e| e.to_string())
 }
 
-pub fn genkeys() -> Result<(Vec<u8>, Vec<u8>), ring::error::Unspecified> {
+#[wasm_bindgen]
+pub struct KeyPairStruct {
+    private_key: Vec<u8>,
+    public_key: Vec<u8>,
+}
+
+#[wasm_bindgen]
+impl KeyPairStruct {
+    pub fn private_key(&self) -> Vec<u8> {
+        self.private_key.clone()
+    }
+    pub fn public_key(&self) -> Vec<u8> {
+        self.public_key.clone()
+    }
+}
+
+#[wasm_bindgen]
+pub fn genkeys() -> Result<KeyPairStruct, String> {
     let random = ring::rand::SystemRandom::new();
-    let private_key = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, &random)?;
-    Ok((
-        private_key.as_ref().to_vec(),
-        EcdsaKeyPair::from_pkcs8(
-            &ECDSA_P256_SHA256_ASN1_SIGNING,
-            private_key.as_ref(),
-            &random,
-        )?
-        .public_key()
-        .as_ref()
-        .to_vec(),
-    ))
+    let private_key = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, &random)
+        .map_err(|e| e.to_string())?;
+    let public_key = EcdsaKeyPair::from_pkcs8(
+        &ECDSA_P256_SHA256_ASN1_SIGNING,
+        private_key.as_ref(),
+        &random,
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(KeyPairStruct {
+        private_key: private_key.as_ref().to_vec(),
+        public_key: public_key.public_key().as_ref().to_vec(),
+    })
 }
