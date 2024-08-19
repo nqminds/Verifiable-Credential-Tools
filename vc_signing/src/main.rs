@@ -24,7 +24,7 @@ fn main() {
             );
         }
         Some("-genkeys") => {
-            let (private_key, public_key) = vc_signing::genkeys().unwrap();
+            let (private_key, public_key) = vc_signing::gen_keys().unwrap();
             write(args.next().unwrap_or("private_key".to_string()), private_key).unwrap();
             write(args.next().unwrap_or("public_key".to_string()), public_key).unwrap();
         }

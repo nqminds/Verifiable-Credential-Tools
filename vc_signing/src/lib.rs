@@ -1,9 +1,6 @@
 use base64::{prelude::BASE64_STANDARD, Engine};
 use chrono::{DateTime, Utc};
-use ring::signature::{
-    EcdsaKeyPair, KeyPair, UnparsedPublicKey, ECDSA_P256_SHA256_ASN1,
-    ECDSA_P256_SHA256_ASN1_SIGNING,
-};
+use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_str, to_string, Value};
 use url::Url;
@@ -81,14 +78,9 @@ pub fn sign(
     verifiable_credential: &str,
     _schema: &str, // TODO validate schema
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let random = ring::rand::SystemRandom::new();
-    let private_key =
-        EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, private_key, &random)
-            .map_err(|_| "KeyRejected")?;
+    let private_key = Ed25519KeyPair::from_pkcs8(private_key).map_err(|_| "KeyRejected")?;
     let mut vc: VerifiableCredential = from_str(verifiable_credential)?;
-    let jws = private_key
-        .sign(&random, to_string(&vc)?.as_bytes())
-        .map_err(|_| "SigningError")?;
+    let jws = private_key.sign(to_string(&vc)?.as_bytes());
     let proof = Proof {
         proof_type: "JsonWebSignature2020".to_string(),
         created: Utc::now(),
@@ -103,7 +95,7 @@ pub fn verify(
     public_key: &[u8],
     verifiable_credential: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let public_key = UnparsedPublicKey::new(&ECDSA_P256_SHA256_ASN1, public_key);
+    let public_key = UnparsedPublicKey::new(&ED25519, public_key);
     let mut vc: VerifiableCredential = from_str(verifiable_credential)?;
     let jws = vc.proof.take().ok_or("VC is unsigned")?.jws;
     Ok(public_key
@@ -114,18 +106,14 @@ pub fn verify(
         .map_err(|_| "VerifyingError")?)
 }
 
-pub fn genkeys() -> Result<(Vec<u8>, Vec<u8>), ring::error::Unspecified> {
+pub fn gen_keys() -> Result<(Vec<u8>, Vec<u8>), ring::error::Unspecified> {
     let random = ring::rand::SystemRandom::new();
-    let private_key = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, &random)?;
+    let private_key = Ed25519KeyPair::generate_pkcs8(&random)?;
     Ok((
         private_key.as_ref().to_vec(),
-        EcdsaKeyPair::from_pkcs8(
-            &ECDSA_P256_SHA256_ASN1_SIGNING,
-            private_key.as_ref(),
-            &random,
-        )?
-        .public_key()
-        .as_ref()
-        .to_vec(),
+        Ed25519KeyPair::from_pkcs8(private_key.as_ref())?
+            .public_key()
+            .as_ref()
+            .to_vec(),
     ))
 }
