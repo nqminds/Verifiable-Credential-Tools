@@ -1,9 +1,9 @@
 use base64::{prelude::BASE64_STANDARD, Engine};
 use chrono::{DateTime, Utc};
 use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use serde_json::{to_string, Value};
-use serde_wasm_bindgen::{from_value, to_value};
+use serde_wasm_bindgen::from_value;
 use url::Url;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
@@ -132,7 +132,9 @@ impl VerifiablePresentation {
             .map_err(|e| e.to_string())
     }
     pub fn to_object(&self) -> Result<JsValue, String> {
-        to_value(self).map_err(|e| e.to_string())
+        serde_wasm_bindgen::Serializer::json_compatible()
+            .serialize_newtype_struct("", self)
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -172,7 +174,9 @@ impl VerifiableCredential {
             .map_err(|e| e.to_string())
     }
     pub fn to_object(&self) -> Result<JsValue, String> {
-        to_value(self).map_err(|e| e.to_string())
+        serde_wasm_bindgen::Serializer::json_compatible()
+            .serialize_newtype_struct("", self)
+            .map_err(|e| e.to_string())
     }
 }
 

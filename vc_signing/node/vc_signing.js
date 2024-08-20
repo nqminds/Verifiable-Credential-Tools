@@ -578,6 +578,11 @@ module.exports.__wbindgen_is_string = function(arg0) {
     return ret;
 };
 
+module.exports.__wbindgen_object_clone_ref = function(arg0) {
+    const ret = getObject(arg0);
+    return addHeapObject(ret);
+};
+
 module.exports.__wbindgen_jsval_loose_eq = function(arg0, arg1) {
     const ret = getObject(arg0) == getObject(arg1);
     return ret;
@@ -585,11 +590,6 @@ module.exports.__wbindgen_jsval_loose_eq = function(arg0, arg1) {
 
 module.exports.__wbindgen_number_new = function(arg0) {
     const ret = arg0;
-    return addHeapObject(ret);
-};
-
-module.exports.__wbindgen_object_clone_ref = function(arg0) {
-    const ret = getObject(arg0);
     return addHeapObject(ret);
 };
 
