@@ -1,16 +1,37 @@
 use base64::{prelude::BASE64_STANDARD, Engine};
 use chrono::{DateTime, Utc};
-use ring::signature::{
-    EcdsaKeyPair, KeyPair, UnparsedPublicKey, ECDSA_P256_SHA256_ASN1,
-    ECDSA_P256_SHA256_ASN1_SIGNING,
-};
+use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
 use serde::{Deserialize, Serialize};
-use serde_json::{from_str, to_string, Value};
+use serde_json::{to_string, Value};
+use serde_wasm_bindgen::{from_value, to_value};
 use url::Url;
 use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::JsValue;
 
 #[derive(Serialize, Deserialize)]
-struct VerifiableCredential {
+#[serde(deny_unknown_fields)]
+#[wasm_bindgen]
+pub struct VerifiablePresentation {
+    id: Option<Url>,
+    #[serde(rename = "type")]
+    vp_type: TypeEnum,
+    #[serde(rename = "verifiableCredential")]
+    verifiable_credential: VerifiableCredentialEnum,
+    holder: Option<Url>,
+    proof: Option<Proof>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+enum VerifiableCredentialEnum {
+    Single(VerifiableCredential),
+    Multiple(Vec<VerifiableCredential>),
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[wasm_bindgen]
+pub struct VerifiableCredential {
     #[serde(rename = "@context")]
     context: Vec<Url>,
     id: Option<Url>,
@@ -47,6 +68,7 @@ enum StatusEnum {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct CredentialStatus {
     id: Option<Url>,
     #[serde(rename = "type")]
@@ -61,6 +83,7 @@ enum SchemaEnum {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct CredentialSchema {
     id: Url,
     #[serde(rename = "type")]
@@ -78,48 +101,79 @@ struct Proof {
 }
 
 #[wasm_bindgen]
-pub fn sign(
-    private_key: &[u8],
-    verifiable_credential: &str,
-    _schema: &str, // TODO validate schema
-) -> Result<String, String> {
-    let random = ring::rand::SystemRandom::new();
-    let private_key =
-        EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, private_key, &random)
-            .map_err(|e| e.to_string())?;
-    let mut vc: VerifiableCredential =
-        from_str(verifiable_credential).map_err(|e| e.to_string())?;
-    let jws = private_key
-        .sign(
-            &random,
-            to_string(&vc).map_err(|e| e.to_string())?.as_bytes(),
-        )
-        .map_err(|e| e.to_string())?;
-    let proof = Proof {
-        proof_type: "JsonWebSignature2020".to_string(),
-        created: Utc::now(),
-        jws: BASE64_STANDARD.encode(jws.as_ref()),
-        proof_purpose: "assertionMethod".to_string(),
-    };
-    vc.proof = Some(proof);
-    to_string(&vc).map_err(|e| e.to_string())
+impl VerifiablePresentation {
+    #[wasm_bindgen(constructor)]
+    pub fn new(verifiable_presentation: JsValue) -> Result<VerifiablePresentation, String> {
+        from_value::<VerifiablePresentation>(verifiable_presentation).map_err(|e| e.to_string())
+    }
+    pub fn sign(mut self, private_key: &[u8]) -> Result<VerifiablePresentation, String> {
+        let private_key = Ed25519KeyPair::from_pkcs8(private_key).map_err(|e| e.to_string())?;
+        let jws = private_key.sign(to_string(&self).map_err(|e| e.to_string())?.as_bytes());
+        let proof = Proof {
+            proof_type: "JsonWebSignature2020".to_string(),
+            jws: BASE64_STANDARD.encode(jws.as_ref()),
+            proof_purpose: "assertionMethod".to_string(),
+            created: Utc::now(),
+        };
+        self.proof = Some(proof);
+        Ok(self)
+    }
+    pub fn verify(&mut self, public_key: &[u8]) -> Result<(), String> {
+        let public_key = UnparsedPublicKey::new(&ED25519, public_key);
+        let jws = self.proof.take().ok_or("VC is unsigned")?.jws;
+        public_key
+            .verify(
+                to_string(self).map_err(|e| e.to_string())?.as_bytes(),
+                BASE64_STANDARD
+                    .decode(jws)
+                    .map_err(|e| e.to_string())?
+                    .as_slice(),
+            )
+            .map_err(|e| e.to_string())
+    }
+    pub fn to_object(&self) -> Result<JsValue, String> {
+        to_value(self).map_err(|e| e.to_string())
+    }
 }
 
 #[wasm_bindgen]
-pub fn verify(public_key: &[u8], verifiable_credential: &str) -> Result<(), String> {
-    let public_key = UnparsedPublicKey::new(&ECDSA_P256_SHA256_ASN1, public_key);
-    let mut vc: VerifiableCredential =
-        from_str(verifiable_credential).map_err(|e| e.to_string())?;
-    let jws = vc.proof.take().ok_or("VC is unsigned")?.jws;
-    public_key
-        .verify(
-            to_string(&vc).map_err(|e| e.to_string())?.as_bytes(),
-            BASE64_STANDARD
-                .decode(jws)
-                .map_err(|e| e.to_string())?
-                .as_slice(),
-        )
-        .map_err(|e| e.to_string())
+impl VerifiableCredential {
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        verifiable_credential: JsValue,
+        _schema: &str,
+    ) -> Result<VerifiableCredential, String> {
+        // TODO validate schema
+        from_value::<VerifiableCredential>(verifiable_credential).map_err(|e| e.to_string())
+    }
+    pub fn sign(mut self, private_key: &[u8]) -> Result<VerifiableCredential, String> {
+        let private_key = Ed25519KeyPair::from_pkcs8(private_key).map_err(|e| e.to_string())?;
+        let jws = private_key.sign(to_string(&self).map_err(|e| e.to_string())?.as_bytes());
+        let proof = Proof {
+            proof_type: "JsonWebSignature2020".to_string(),
+            jws: BASE64_STANDARD.encode(jws.as_ref()),
+            proof_purpose: "assertionMethod".to_string(),
+            created: Utc::now(),
+        };
+        self.proof = Some(proof);
+        Ok(self)
+    }
+    pub fn verify(&mut self, public_key: &[u8]) -> Result<(), String> {
+        let public_key = UnparsedPublicKey::new(&ED25519, public_key);
+        let jws = self.proof.take().ok_or("VC is unsigned")?.jws;
+        public_key
+            .verify(
+                to_string(self).map_err(|e| e.to_string())?.as_bytes(),
+                BASE64_STANDARD
+                    .decode(jws)
+                    .map_err(|e| e.to_string())?
+                    .as_slice(),
+            )
+            .map_err(|e| e.to_string())
+    }
+    pub fn to_object(&self) -> Result<JsValue, String> {
+        to_value(self).map_err(|e| e.to_string())
+    }
 }
 
 #[wasm_bindgen]
@@ -139,18 +193,18 @@ impl KeyPairStruct {
 }
 
 #[wasm_bindgen]
-pub fn genkeys() -> Result<KeyPairStruct, String> {
-    let random = ring::rand::SystemRandom::new();
-    let private_key = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, &random)
-        .map_err(|e| e.to_string())?;
-    let public_key = EcdsaKeyPair::from_pkcs8(
-        &ECDSA_P256_SHA256_ASN1_SIGNING,
-        private_key.as_ref(),
-        &random,
-    )
-    .map_err(|e| e.to_string())?;
+pub fn gen_keys() -> Result<KeyPairStruct, String> {
+    let private_key = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new())
+        .map_err(|e| e.to_string())?
+        .as_ref()
+        .to_vec();
+    let public_key = Ed25519KeyPair::from_pkcs8(&private_key)
+        .map_err(|e| e.to_string())?
+        .public_key()
+        .as_ref()
+        .to_vec();
     Ok(KeyPairStruct {
-        private_key: private_key.as_ref().to_vec(),
-        public_key: public_key.public_key().as_ref().to_vec(),
+        private_key,
+        public_key,
     })
 }
