@@ -10,10 +10,7 @@ use wasm_bindgen::JsValue;
 #[wasm_bindgen]
 impl VerifiablePresentation {
     #[wasm_bindgen(constructor)]
-    pub fn new(
-        verifiable_presentation: JsValue,
-        _schema: &str,
-    ) -> Result<VerifiablePresentation, String> {
+    pub fn new(verifiable_presentation: JsValue) -> Result<VerifiablePresentation, String> {
         serde_wasm_bindgen::from_value::<VerifiablePresentation>(verifiable_presentation)
             .map_err(|e| e.to_string())
     }

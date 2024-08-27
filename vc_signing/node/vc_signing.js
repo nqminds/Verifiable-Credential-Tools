@@ -422,14 +422,11 @@ class VerifiablePresentation {
     }
     /**
     * @param {any} verifiable_presentation
-    * @param {string} _schema
     */
-    constructor(verifiable_presentation, _schema) {
+    constructor(verifiable_presentation) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(_schema, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.verifiablepresentation_new(retptr, addHeapObject(verifiable_presentation), ptr0, len0);
+            wasm.verifiablepresentation_new(retptr, addHeapObject(verifiable_presentation));
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
