@@ -46,8 +46,9 @@ export class VerifiablePresentation {
   free(): void;
 /**
 * @param {any} verifiable_presentation
+* @param {string} _schema
 */
-  constructor(verifiable_presentation: any);
+  constructor(verifiable_presentation: any, _schema: string);
 /**
 * @param {Uint8Array} private_key
 * @returns {VerifiablePresentation}

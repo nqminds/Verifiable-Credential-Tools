@@ -46,8 +46,9 @@ export class VerifiablePresentation {
   free(): void;
 /**
 * @param {any} verifiable_presentation
+* @param {string} _schema
 */
-  constructor(verifiable_presentation: any);
+  constructor(verifiable_presentation: any, _schema: string);
 /**
 * @param {Uint8Array} private_key
 * @returns {VerifiablePresentation}
@@ -69,7 +70,7 @@ export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly __wbg_verifiablepresentation_free: (a: number, b: number) => void;
   readonly __wbg_verifiablecredential_free: (a: number, b: number) => void;
-  readonly verifiablepresentation_new: (a: number, b: number) => void;
+  readonly verifiablepresentation_new: (a: number, b: number, c: number, d: number) => void;
   readonly verifiablepresentation_sign: (a: number, b: number, c: number, d: number) => void;
   readonly verifiablepresentation_verify: (a: number, b: number, c: number, d: number) => void;
   readonly verifiablepresentation_to_object: (a: number, b: number) => void;

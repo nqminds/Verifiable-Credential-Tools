@@ -422,11 +422,14 @@ class VerifiablePresentation {
     }
     /**
     * @param {any} verifiable_presentation
+    * @param {string} _schema
     */
-    constructor(verifiable_presentation) {
+    constructor(verifiable_presentation, _schema) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.verifiablepresentation_new(retptr, addHeapObject(verifiable_presentation));
+            const ptr0 = passStringToWasm0(_schema, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.verifiablepresentation_new(retptr, addHeapObject(verifiable_presentation), ptr0, len0);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
@@ -510,11 +513,6 @@ module.exports.__wbindgen_error_new = function(arg0, arg1) {
     return addHeapObject(ret);
 };
 
-module.exports.__wbindgen_string_new = function(arg0, arg1) {
-    const ret = getStringFromWasm0(arg0, arg1);
-    return addHeapObject(ret);
-};
-
 module.exports.__wbindgen_boolean_get = function(arg0) {
     const v = getObject(arg0);
     const ret = typeof(v) === 'boolean' ? (v ? 1 : 0) : 2;
@@ -580,6 +578,11 @@ module.exports.__wbindgen_is_string = function(arg0) {
 
 module.exports.__wbindgen_object_clone_ref = function(arg0) {
     const ret = getObject(arg0);
+    return addHeapObject(ret);
+};
+
+module.exports.__wbindgen_string_new = function(arg0, arg1) {
+    const ret = getStringFromWasm0(arg0, arg1);
     return addHeapObject(ret);
 };
 
