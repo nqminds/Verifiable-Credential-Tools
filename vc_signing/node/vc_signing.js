@@ -312,14 +312,12 @@ class VerifiableCredential {
     }
     /**
     * @param {any} verifiable_credential
-    * @param {string} _schema
+    * @param {any} schema
     */
-    constructor(verifiable_credential, _schema) {
+    constructor(verifiable_credential, schema) {
         try {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            const ptr0 = passStringToWasm0(_schema, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len0 = WASM_VECTOR_LEN;
-            wasm.verifiablecredential_new(retptr, addHeapObject(verifiable_credential), ptr0, len0);
+            wasm.verifiablecredential_new(retptr, addHeapObject(verifiable_credential), addHeapObject(schema));
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);

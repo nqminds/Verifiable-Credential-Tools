@@ -23,9 +23,9 @@ export class VerifiableCredential {
   free(): void;
 /**
 * @param {any} verifiable_credential
-* @param {string} _schema
+* @param {any} schema
 */
-  constructor(verifiable_credential: any, _schema: string);
+  constructor(verifiable_credential: any, schema: any);
 /**
 * @param {Uint8Array} private_key
 * @returns {VerifiableCredential}

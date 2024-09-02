@@ -5,6 +5,7 @@ use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::{from_value, to_string, Value};
+use std::fmt::Write;
 
 pub trait ProofTrait {
     fn get_proof(&mut self) -> Result<Proof, String>;
@@ -32,12 +33,6 @@ impl ProofTrait for VerifiableCredential {
 }
 
 pub trait CryptoTrait: ProofTrait {
-    fn new(input: Value, _schema: &str) -> Result<Self, serde_json::error::Error>
-    where
-        Self: DeserializeOwned,
-    {
-        from_value::<Self>(input)
-    }
     fn sign(mut self, private_key: &[u8]) -> Result<Self, String>
     where
         Self: Serialize + Sized,
@@ -74,6 +69,40 @@ pub trait CryptoTrait: ProofTrait {
 
 impl CryptoTrait for VerifiablePresentation {}
 impl CryptoTrait for VerifiableCredential {}
+
+impl VerifiablePresentation {
+    pub fn new(verifiable_presentation: Value) -> Result<Self, String>
+    where
+        Self: DeserializeOwned,
+    {
+        from_value::<Self>(verifiable_presentation).map_err(|e| e.to_string())
+    }
+}
+impl VerifiableCredential {
+    pub fn new(verifiable_credential: Value, schema: Value) -> Result<Self, String>
+    where
+        Self: DeserializeOwned,
+    {
+        let schema = from_value::<Self>(schema).map_err(|e| e.to_string())?;
+        let verifiable_credential =
+            from_value::<Self>(verifiable_credential).map_err(|e| e.to_string())?;
+        let mut scope = valico::json_schema::Scope::new();
+        let schema = scope
+            .compile_and_return(schema.credential_subject, true)
+            .map_err(|e| e.to_string())?;
+        let result = schema.validate(&verifiable_credential.credential_subject);
+        if !result.is_valid() {
+            return Err(result.errors.iter().fold(String::new(), |mut output, e| {
+                match e.get_detail() {
+                    Some(detail) => writeln!(output, "{}: {}", e.get_path(), detail).unwrap(),
+                    None => writeln!(output, "{}", e.get_path()).unwrap(),
+                }
+                output
+            }));
+        }
+        Ok(verifiable_credential)
+    }
+}
 
 pub fn gen_keys() -> Result<(Vec<u8>, Vec<u8>), String> {
     let private_key = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new())

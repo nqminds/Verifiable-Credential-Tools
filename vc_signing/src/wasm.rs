@@ -4,6 +4,7 @@ use chrono::Utc;
 use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
 use serde::Serializer;
 use serde_json::to_string;
+use std::fmt::Write;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 
@@ -51,10 +52,28 @@ impl VerifiableCredential {
     #[wasm_bindgen(constructor)]
     pub fn new(
         verifiable_credential: JsValue,
-        _schema: &str,
+        schema: JsValue,
     ) -> Result<VerifiableCredential, String> {
-        serde_wasm_bindgen::from_value::<VerifiableCredential>(verifiable_credential)
-            .map_err(|e| e.to_string())
+        let schema = serde_wasm_bindgen::from_value::<VerifiableCredential>(schema)
+            .map_err(|e| e.to_string())?;
+        let verifiable_credential =
+            serde_wasm_bindgen::from_value::<VerifiableCredential>(verifiable_credential)
+                .map_err(|e| e.to_string())?;
+        let mut scope = valico::json_schema::Scope::new();
+        let schema = scope
+            .compile_and_return(schema.credential_subject, true)
+            .map_err(|e| e.to_string())?;
+        let result = schema.validate(&verifiable_credential.credential_subject);
+        if !result.is_valid() {
+            return Err(result.errors.iter().fold(String::new(), |mut output, e| {
+                match e.get_detail() {
+                    Some(detail) => writeln!(output, "{}: {}", e.get_path(), detail).unwrap(),
+                    None => writeln!(output, "{}", e.get_path()).unwrap(),
+                }
+                output
+            }));
+        }
+        Ok(verifiable_credential)
     }
     pub fn sign(mut self, private_key: &[u8]) -> Result<VerifiableCredential, String> {
         let private_key = Ed25519KeyPair::from_pkcs8(private_key).map_err(|e| e.to_string())?;

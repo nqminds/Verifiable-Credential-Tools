@@ -23,9 +23,9 @@ export class VerifiableCredential {
   free(): void;
 /**
 * @param {any} verifiable_credential
-* @param {string} _schema
+* @param {any} schema
 */
-  constructor(verifiable_credential: any, _schema: string);
+  constructor(verifiable_credential: any, schema: any);
 /**
 * @param {Uint8Array} private_key
 * @returns {VerifiableCredential}
@@ -73,7 +73,7 @@ export interface InitOutput {
   readonly verifiablepresentation_sign: (a: number, b: number, c: number, d: number) => void;
   readonly verifiablepresentation_verify: (a: number, b: number, c: number, d: number) => void;
   readonly verifiablepresentation_to_object: (a: number, b: number) => void;
-  readonly verifiablecredential_new: (a: number, b: number, c: number, d: number) => void;
+  readonly verifiablecredential_new: (a: number, b: number, c: number) => void;
   readonly verifiablecredential_sign: (a: number, b: number, c: number, d: number) => void;
   readonly verifiablecredential_verify: (a: number, b: number, c: number, d: number) => void;
   readonly verifiablecredential_to_object: (a: number, b: number) => void;

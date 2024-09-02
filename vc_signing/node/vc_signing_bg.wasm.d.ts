@@ -7,7 +7,7 @@ export function verifiablepresentation_new(a: number, b: number): void;
 export function verifiablepresentation_sign(a: number, b: number, c: number, d: number): void;
 export function verifiablepresentation_verify(a: number, b: number, c: number, d: number): void;
 export function verifiablepresentation_to_object(a: number, b: number): void;
-export function verifiablecredential_new(a: number, b: number, c: number, d: number): void;
+export function verifiablecredential_new(a: number, b: number, c: number): void;
 export function verifiablecredential_sign(a: number, b: number, c: number, d: number): void;
 export function verifiablecredential_verify(a: number, b: number, c: number, d: number): void;
 export function verifiablecredential_to_object(a: number, b: number): void;
