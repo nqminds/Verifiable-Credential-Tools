@@ -4,8 +4,10 @@ use std::env;
 use std::error::Error;
 
 // Fetches and parses the schema from the given GitHub URL
-pub fn get_schema(url: &str) -> Result<Value, Box<dyn Error>> {
-    // Retrieve GitHub token from environment variable, return an error if not found
+pub fn get_schema(schema_url: &str) -> Result<Value, Box<dyn Error>> {
+    let url = get_api_url(schema_url);
+
+    // Retrieve GitHub token from environment variable; return an error if not found
     let token =
         env::var("GITHUB_TOKEN").map_err(|_| "GITHUB_TOKEN environment variable not set")?;
 
@@ -52,4 +54,37 @@ fn fetch_raw_content(
         // Return an error if the request failed
         Err(format!("Failed to fetch raw content: {}", response.status()).into())
     }
+}
+
+// Extract repository parts from the URL
+fn extract_repo_parts(url: &str) -> &str {
+    let start = url.find("github.com/").unwrap() + "github.com/".len();
+    let end = url.find("/tree/").unwrap();
+    &url[start..end]
+}
+
+// Extract file path from the URL
+fn extract_file_path(url: &str) -> &str {
+    let start = url.find("/tree/").unwrap() + "/tree/".len();
+    let file_path_start = url[start..].find('/').unwrap() + start + 1;
+    &url[file_path_start..]
+}
+
+// Extract branch name from the URL
+fn extract_branch(url: &str) -> &str {
+    let start = url.find("/tree/").unwrap() + "/tree/".len();
+    let end = url[start..].find('/').unwrap() + start;
+    &url[start..end]
+}
+
+// Generate the GitHub API URL for the raw file content
+fn get_api_url(schema_url: &str) -> String {
+    let repo = extract_repo_parts(schema_url);
+    let file_path = extract_file_path(schema_url);
+    let branch = extract_branch(schema_url);
+
+    format!(
+        "https://api.github.com/repos/{}/contents/{}?ref={}",
+        repo, file_path, branch
+    )
 }
