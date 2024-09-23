@@ -1,11 +1,101 @@
-use crate::{Proof, VerifiableCredential, VerifiablePresentation};
 use base64::{prelude::BASE64_STANDARD, Engine};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_string, Value};
 use std::fmt::Write;
+use url::Url;
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct VerifiablePresentation {
+    id: Option<Url>,
+    #[serde(rename = "type")]
+    vp_type: TypeEnum,
+    #[serde(rename = "verifiableCredential")]
+    verifiable_credential: VerifiableCredentialEnum,
+    holder: Option<Url>,
+    proof: Option<Proof>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(untagged)]
+enum VerifiableCredentialEnum {
+    Single(VerifiableCredential),
+    Multiple(Vec<VerifiableCredential>),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct VerifiableCredential {
+    #[serde(rename = "@context")]
+    pub context: Vec<Url>,
+    pub id: Option<Url>,
+    #[serde(rename = "type")]
+    pub vc_type: TypeEnum,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub issuer: Url,
+    #[serde(rename = "validFrom")]
+    pub valid_from: Option<DateTime<Utc>>,
+    #[serde(rename = "validUntil")]
+    pub valid_until: Option<DateTime<Utc>>,
+    #[serde(rename = "credentialStatus")]
+    pub credential_status: Option<StatusEnum>,
+    #[serde(rename = "credentialSchema")]
+    pub credential_schema: SchemaEnum,
+    #[serde(rename = "credentialSubject")]
+    pub credential_subject: Value,
+    pub proof: Option<Proof>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum TypeEnum {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum StatusEnum {
+    Single(CredentialStatus),
+    Multiple(Vec<CredentialStatus>),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct CredentialStatus {
+    pub id: Option<Url>,
+    #[serde(rename = "type")]
+    pub status_type: TypeEnum,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum SchemaEnum {
+    Single(CredentialSchema),
+    Multiple(Vec<CredentialSchema>),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct CredentialSchema {
+    pub id: Url,
+    #[serde(rename = "type")]
+    pub credential_type: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Proof {
+    #[serde(rename = "type")]
+    pub proof_type: String,
+    pub jws: String,
+    #[serde(rename = "proofPurpose")]
+    pub proof_purpose: String,
+    pub created: DateTime<Utc>,
+}
 
 pub trait ProofTrait {
     fn get_proof(&mut self) -> Result<Proof, String>;
