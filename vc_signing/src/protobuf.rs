@@ -1,21 +1,21 @@
-use crate::verifiable_credentials::type_struct::{OneofType, RepeatedType};
-use crate::verifiable_credentials::verifiable_credential::{
+use crate::native;
+use crate::native::{SchemaEnum, StatusEnum, TypeEnum};
+use chrono::DateTime;
+use prost::Message;
+use std::str::FromStr;
+use url::Url;
+use verifiable_credentials::type_struct::{OneofType, RepeatedType};
+use verifiable_credentials::verifiable_credential::{
     CredentialSchema, CredentialSchemaStruct, CredentialStatus, CredentialStatusStruct,
     RepeatedCredentialSchema, RepeatedCredentialStatus,
 };
-use crate::verifiable_credentials::{TypeStruct, VerifiableCredential};
-use chrono::DateTime;
-use prost::Message;
-use serde_json::json;
-use std::str::FromStr;
-use url::Url;
-use vc_signing::native::{CryptoTrait, SchemaEnum, StatusEnum, TypeEnum};
+use verifiable_credentials::{TypeStruct, VerifiableCredential};
 
 pub mod verifiable_credentials {
     include!(concat!(env!("OUT_DIR"), "/verifiable_credentials.rs"));
 }
 
-impl From<VerifiableCredential> for vc_signing::native::VerifiableCredential {
+impl From<VerifiableCredential> for native::VerifiableCredential {
     fn from(vc: VerifiableCredential) -> Self {
         let context = vc
             .context
@@ -28,7 +28,7 @@ impl From<VerifiableCredential> for vc_signing::native::VerifiableCredential {
                 SchemaEnum::Multiple(
                     repeated_schema
                         .iter()
-                        .map(|schema| vc_signing::native::CredentialSchema {
+                        .map(|schema| native::CredentialSchema {
                             id: Url::from_str(&schema.schema_id).unwrap(),
                             credential_type: schema.schema_type.clone(),
                         })
@@ -38,7 +38,7 @@ impl From<VerifiableCredential> for vc_signing::native::VerifiableCredential {
             CredentialSchema::SingleSchema(CredentialSchemaStruct {
                 schema_id,
                 schema_type,
-            }) => SchemaEnum::Single(vc_signing::native::CredentialSchema {
+            }) => SchemaEnum::Single(native::CredentialSchema {
                 id: Url::from_str(&schema_id).unwrap(),
                 credential_type: schema_type,
             }),
@@ -52,7 +52,7 @@ impl From<VerifiableCredential> for vc_signing::native::VerifiableCredential {
                     }) => StatusEnum::Multiple(
                         repeated_status
                             .iter()
-                            .map(|status| vc_signing::native::CredentialStatus {
+                            .map(|status| native::CredentialStatus {
                                 id: status
                                     .status_id
                                     .clone()
@@ -75,7 +75,7 @@ impl From<VerifiableCredential> for vc_signing::native::VerifiableCredential {
                     CredentialStatus::SingleStatus(CredentialStatusStruct {
                         status_type,
                         status_id,
-                    }) => StatusEnum::Single(vc_signing::native::CredentialStatus {
+                    }) => StatusEnum::Single(native::CredentialStatus {
                         id: status_id.map(|id| Url::from_str(&id).unwrap()),
                         status_type: match status_type.unwrap() {
                             TypeStruct {
@@ -91,7 +91,7 @@ impl From<VerifiableCredential> for vc_signing::native::VerifiableCredential {
                 });
 
         let prost_types::Any { type_url: _, value } = vc.credential_subject.unwrap();
-        let credential_subject: String = prost::Message::decode(value.as_slice()).unwrap();
+        let credential_subject: String = Message::decode(value.as_slice()).unwrap();
         let credential_subject = serde_json::from_str(&credential_subject).unwrap();
 
         let valid_from = vc
@@ -101,7 +101,7 @@ impl From<VerifiableCredential> for vc_signing::native::VerifiableCredential {
             .valid_until
             .map(|x| DateTime::from_timestamp(x.seconds, x.nanos as u32).unwrap());
 
-        let proof = vc.proof.map(|proof| vc_signing::native::Proof {
+        let proof = vc.proof.map(|proof| native::Proof {
             proof_type: proof.proof_type,
             jws: proof.jws,
             proof_purpose: proof.proof_purpose,
@@ -139,8 +139,8 @@ impl From<VerifiableCredential> for vc_signing::native::VerifiableCredential {
     }
 }
 
-impl From<vc_signing::native::VerifiableCredential> for VerifiableCredential {
-    fn from(vc: vc_signing::native::VerifiableCredential) -> Self {
+impl From<native::VerifiableCredential> for VerifiableCredential {
+    fn from(vc: native::VerifiableCredential) -> Self {
         let context = vc
             .context
             .iter()
@@ -255,66 +255,4 @@ impl From<vc_signing::native::VerifiableCredential> for VerifiableCredential {
             credential_status,
         }
     }
-}
-
-fn main() {
-    let vc = json!({
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
-        "id": "urn:uuid:5c229716-4159-490b-bb49-ce59a2472248",
-        "type": ["VerifiableCredential", "Example"],
-        "issuer": "urn:uuid:8bbabf61-758b-4bcb-8dab-4a4d1d493e25",
-        "validFrom": "2024-08-29T12:00:00Z",
-        "credentialSchema": {
-            "id": "urn:uuid:da87634c-19df-4e55-8bc4-0191730f8304",
-            "type": "JsonSchema",
-        },
-        "credentialSubject": {
-            "id": "example_id",
-            "created_at": 1724929200
-        }
-    });
-
-    let schema = json!({
-        "@context": ["https://www.w3.org/ns/credentials/v2"],
-        "id": "urn:uuid:46e2ee61-d759-40c8-b226-10a7c162dee1",
-        "type": ["VerifiableCredential", "Schema"],
-        "issuer": "urn:uuid:8fef183c-c18d-44c6-ba65-5a0bdb8025e9",
-        "validFrom": "2024-08-29T12:00:00Z",
-        "credentialSchema": {
-            "id": "urn:uuid:da87634c-19df-4e55-8bc4-0191730f8304",
-            "type": "JsonSchema",
-        },
-        "credentialSubject": {
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-            "$id": "urn:uuid:36862033-fc98-46de-b63e-2af0c79f3b01",
-            "title": "example",
-            "description": "An example schema",
-            "type": "object",
-            "properties": {
-                "id": {
-                    "description": "id",
-                    "type": "string",
-                },
-                "created_at": {
-                    "description": "timestamp",
-                    "type": "integer",
-                },
-            },
-            "required": ["id", "created_at"]
-        }
-    });
-
-    let (private, _public) = vc_signing::native::gen_keys().unwrap();
-    let vc = vc_signing::native::VerifiableCredential::new(vc, schema)
-        .unwrap()
-        .sign(&private)
-        .unwrap();
-    println!("{:?}", vc);
-
-    let message = Into::<VerifiableCredential>::into(vc).encode_to_vec();
-    println!("{:?}", message);
-
-    let vc = VerifiableCredential::decode(message.as_slice()).unwrap();
-    let vc = Into::<vc_signing::native::VerifiableCredential>::into(vc);
-    println!("{:?}", vc);
 }

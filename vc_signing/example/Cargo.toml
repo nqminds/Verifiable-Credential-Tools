@@ -6,3 +6,7 @@ edition = "2021"
 [dependencies]
 vc_signing = {path = "../../vc_signing"}
 serde_json = "1.0.127"
+prost = {version = "0.13.3", optional = true}
+
+[features]
+protobuf = ["vc_signing/protobuf", "prost"]

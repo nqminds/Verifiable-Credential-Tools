@@ -1,7 +1,7 @@
 use base64::{prelude::BASE64_STANDARD, Engine};
 use chrono::{DateTime, Utc};
 use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
-use serde::{Serializer, Serialize, Deserialize};
+use serde::{Deserialize, Serialize, Serializer};
 use serde_json::{to_string, Value};
 use std::fmt::Write;
 use url::Url;
