@@ -1,5 +1,6 @@
 use crate::native;
-use crate::native::{SchemaEnum, StatusEnum, TypeEnum};
+use crate::native::{Proof, SchemaEnum, StatusEnum, TypeEnum, VerifiableCredentialEnum};
+use crate::protobuf::verifiable_credentials::verifiable_presentation::RepeatedCredential;
 use chrono::DateTime;
 use prost::Message;
 use std::str::FromStr;
@@ -9,10 +10,102 @@ use verifiable_credentials::verifiable_credential::{
     CredentialSchema, CredentialSchemaStruct, CredentialStatus, CredentialStatusStruct,
     RepeatedCredentialSchema, RepeatedCredentialStatus,
 };
-use verifiable_credentials::{TypeStruct, VerifiableCredential};
+use verifiable_credentials::verifiable_presentation;
+use verifiable_credentials::{TypeStruct, VerifiableCredential, VerifiablePresentation};
 
 pub mod verifiable_credentials {
     include!(concat!(env!("OUT_DIR"), "/verifiable_credentials.rs"));
+}
+
+impl From<VerifiablePresentation> for native::VerifiablePresentation {
+    fn from(vp: VerifiablePresentation) -> Self {
+        let id = vp.vp_id.map(|id| Url::from_str(&id).unwrap());
+
+        let vp_type = match vp.vp_type.unwrap() {
+            TypeStruct {
+                oneof_type: Some(OneofType::SingleType(string)),
+            } => TypeEnum::Single(string),
+            TypeStruct {
+                oneof_type: Some(OneofType::MultipleType(RepeatedType { repeated_type })),
+            } => TypeEnum::Multiple(repeated_type),
+            _ => panic!("Error in presentation type"),
+        };
+
+        let verifiable_credential = match vp.verifiable_credential.unwrap() {
+            verifiable_presentation::VerifiableCredential::SingleVc(vc) => {
+                VerifiableCredentialEnum::Single(vc.into())
+            }
+            verifiable_presentation::VerifiableCredential::MultipleVc(RepeatedCredential {
+                repeated_vc,
+            }) => VerifiableCredentialEnum::Multiple(
+                repeated_vc.into_iter().map(|vc| vc.into()).collect(),
+            ),
+        };
+
+        let holder = vp.holder.map(|holder| Url::from_str(&holder).unwrap());
+
+        let proof = vp.proof.map(|proof| Proof {
+            proof_type: proof.proof_type,
+            jws: proof.jws,
+            proof_purpose: proof.proof_purpose,
+            created: DateTime::from_timestamp(
+                proof.created.unwrap().seconds,
+                proof.created.unwrap().nanos as u32,
+            )
+            .unwrap(),
+        });
+
+        Self {
+            id,
+            vp_type,
+            verifiable_credential,
+            holder,
+            proof,
+        }
+    }
+}
+
+impl From<native::VerifiablePresentation> for VerifiablePresentation {
+    fn from(vp: native::VerifiablePresentation) -> Self {
+        let vp_id = vp.id.map(|id| id.to_string());
+
+        let vp_type = match vp.vp_type {
+            TypeEnum::Multiple(vec) => Some(TypeStruct {
+                oneof_type: Some(OneofType::MultipleType(RepeatedType { repeated_type: vec })),
+            }),
+            TypeEnum::Single(string) => Some(TypeStruct {
+                oneof_type: Some(OneofType::SingleType(string)),
+            }),
+        };
+
+        let verifiable_credential = match vp.verifiable_credential {
+            VerifiableCredentialEnum::Single(vc) => Some(
+                verifiable_presentation::VerifiableCredential::SingleVc(vc.into()),
+            ),
+            VerifiableCredentialEnum::Multiple(vec) => Some(
+                verifiable_presentation::VerifiableCredential::MultipleVc(RepeatedCredential {
+                    repeated_vc: vec.into_iter().map(|vc| vc.into()).collect(),
+                }),
+            ),
+        };
+
+        let holder = vp.holder.map(|holder| holder.to_string());
+
+        let proof = vp.proof.map(|proof| verifiable_credentials::Proof {
+            proof_type: proof.proof_type,
+            jws: proof.jws,
+            proof_purpose: proof.proof_purpose,
+            created: Some(prost_types::Timestamp::from_str(&proof.created.to_rfc3339()).unwrap()),
+        });
+
+        Self {
+            vp_id,
+            vp_type,
+            verifiable_credential,
+            holder,
+            proof,
+        }
+    }
 }
 
 impl From<VerifiableCredential> for native::VerifiableCredential {

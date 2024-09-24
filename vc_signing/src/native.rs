@@ -10,18 +10,18 @@ use url::Url;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct VerifiablePresentation {
-    id: Option<Url>,
+    pub id: Option<Url>,
     #[serde(rename = "type")]
-    vp_type: TypeEnum,
+    pub vp_type: TypeEnum,
     #[serde(rename = "verifiableCredential")]
-    verifiable_credential: VerifiableCredentialEnum,
-    holder: Option<Url>,
-    proof: Option<Proof>,
+    pub verifiable_credential: VerifiableCredentialEnum,
+    pub holder: Option<Url>,
+    pub proof: Option<Proof>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(untagged)]
-enum VerifiableCredentialEnum {
+pub enum VerifiableCredentialEnum {
     Single(VerifiableCredential),
     Multiple(Vec<VerifiableCredential>),
 }
