@@ -1,4 +1,3 @@
-use base64::{prelude::BASE64_STANDARD, Engine};
 use chrono::{DateTime, Utc};
 use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
 use serde::de::DeserializeOwned;
@@ -91,7 +90,7 @@ pub struct CredentialSchema {
 pub struct Proof {
     #[serde(rename = "type")]
     pub proof_type: String,
-    pub jws: String,
+    pub jws: Vec<u8>,
     #[serde(rename = "proofPurpose")]
     pub proof_purpose: String,
     pub created: DateTime<Utc>,
@@ -131,7 +130,7 @@ pub trait CryptoTrait: ProofTrait {
         let jws = private_key.sign(to_string(&self).map_err(|e| e.to_string())?.as_bytes());
         let proof = Proof {
             proof_type: "JsonWebSignature2020".to_string(),
-            jws: BASE64_STANDARD.encode(jws.as_ref()),
+            jws: jws.as_ref().to_vec(),
             proof_purpose: "assertionMethod".to_string(),
             created: Utc::now(),
         };
@@ -148,10 +147,7 @@ pub trait CryptoTrait: ProofTrait {
         public_key
             .verify(
                 to_string(&clone).map_err(|e| e.to_string())?.as_bytes(),
-                BASE64_STANDARD
-                    .decode(jws)
-                    .map_err(|e| e.to_string())?
-                    .as_slice(),
+                &jws,
             )
             .map_err(|e| e.to_string())
     }

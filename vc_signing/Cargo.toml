@@ -9,7 +9,6 @@ edition = "2021"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-base64 = "0.22.1"
 serde = {version = "1.0.204", features = ["derive"]}
 serde_json = "1.0.121"
 chrono = {version = "0.4.38", features = ["serde"]}
@@ -20,6 +19,7 @@ valico = "4.0.0"
 ring = {version = "0.17.8", features = ["wasm32_unknown_unknown_js"]}
 wasm-bindgen = "0.2.93"
 serde-wasm-bindgen = "0.6.5"
+base64 = "0.22.1"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 ring = "0.17.8"
