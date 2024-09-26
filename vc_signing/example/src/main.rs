@@ -1,6 +1,5 @@
 use serde_json::json;
-use vc_signing::native::VerifiableCredential;
-use vc_signing::native::{gen_keys, CryptoTrait};
+use vc_signing::native::{gen_keys, VerifiableCredential, VerifiableFunctions};
 
 fn main() {
     let (private, public) = gen_keys().unwrap();
@@ -55,20 +54,16 @@ fn main() {
         .unwrap()
         .sign(&private)
         .unwrap();
+    println!("{:?}", vc);
+
+    let cbor = vc.serialize_cbor().unwrap();
+    println!("{:?}", cbor);
+    let protobuf = vc.serialize_protobuf();
+    println!("{:?}", protobuf);
+
+    let vc: VerifiableCredential = VerifiableFunctions::deserialize_cbor(cbor).unwrap();
+    println!("{:?}", vc);
+    let vc: VerifiableCredential = VerifiableFunctions::deserialize_protobuf(protobuf).unwrap();
+    println!("{:?}", vc);
     println!("{:?}", vc.verify(&public));
-
-    #[cfg(feature = "protobuf")]
-    {
-        use prost::Message;
-        use vc_signing::protobuf::verifiable_credentials;
-
-        println!("{:?}", vc);
-        let message =
-            Into::<verifiable_credentials::VerifiableCredential>::into(vc).encode_to_vec();
-        println!("{:?}", message);
-
-        let vc = verifiable_credentials::VerifiableCredential::decode(message.as_slice()).unwrap();
-        let vc = Into::<VerifiableCredential>::into(vc);
-        println!("{:?}", vc);
-    }
 }
