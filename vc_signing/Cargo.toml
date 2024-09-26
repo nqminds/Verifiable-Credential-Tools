@@ -23,11 +23,13 @@ base64 = "0.22.1"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 ring = "0.17.8"
-prost = "0.13.3"
-prost-types = "0.13.3"
+prost = {version = "0.13.3", optional = true}
+prost-types = {version = "0.13.3", optional = true}
+ciborium = {version = "0.2.2", optional = true}
 
 [build-dependencies]
 prost-build = {version = "0.13.3", optional = true}
 
 [features]
-protobuf = ["dep:prost-build"]
+protobuf = ["dep:prost-build", "dep:prost", "dep:prost-types"]
+cbor = ["dep:ciborium"]

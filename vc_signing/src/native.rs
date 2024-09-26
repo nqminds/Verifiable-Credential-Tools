@@ -1,4 +1,8 @@
+#[cfg(feature = "protobuf")]
+use crate::protobuf::verifiable_credentials;
 use chrono::{DateTime, Utc};
+#[cfg(feature = "protobuf")]
+use prost::Message;
 use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -96,32 +100,9 @@ pub struct Proof {
     pub created: DateTime<Utc>,
 }
 
-pub trait ProofTrait {
+pub trait VerifiableFunctions {
     fn get_proof(&mut self) -> Result<Proof, String>;
     fn set_proof(&mut self, proof: Proof) -> Result<(), String>;
-}
-
-impl ProofTrait for VerifiablePresentation {
-    fn get_proof(&mut self) -> Result<Proof, String> {
-        self.proof.take().ok_or("VP is unsigned".to_string())
-    }
-    fn set_proof(&mut self, proof: Proof) -> Result<(), String> {
-        self.proof = Some(proof);
-        Ok(())
-    }
-}
-
-impl ProofTrait for VerifiableCredential {
-    fn get_proof(&mut self) -> Result<Proof, String> {
-        self.proof.take().ok_or("VC is unsigned".to_string())
-    }
-    fn set_proof(&mut self, proof: Proof) -> Result<(), String> {
-        self.proof = Some(proof);
-        Ok(())
-    }
-}
-
-pub trait CryptoTrait: ProofTrait {
     fn sign(mut self, private_key: &[u8]) -> Result<Self, String>
     where
         Self: Serialize + Sized,
@@ -151,10 +132,69 @@ pub trait CryptoTrait: ProofTrait {
             )
             .map_err(|e| e.to_string())
     }
+    #[cfg(feature = "cbor")]
+    fn serialize_cbor(&self) -> Result<Vec<u8>, ciborium::ser::Error<std::io::Error>>
+    where
+        Self: Serialize,
+    {
+        let mut buf = Vec::new();
+        ciborium::into_writer(self, &mut buf)?;
+        Ok(buf)
+    }
+    #[cfg(feature = "cbor")]
+    fn deserialize_cbor(reader: Vec<u8>) -> Result<Self, String>
+    where
+        Self: DeserializeOwned + Sized,
+    {
+        ciborium::from_reader(reader.as_slice()).map_err(|e| e.to_string())
+    }
+    #[cfg(feature = "protobuf")]
+    fn serialize_protobuf(self) -> Vec<u8>;
+    #[cfg(feature = "protobuf")]
+    fn deserialize_protobuf(reader: Vec<u8>) -> Result<Self, prost::DecodeError>
+    where
+        Self: Sized;
 }
 
-impl CryptoTrait for VerifiablePresentation {}
-impl CryptoTrait for VerifiableCredential {}
+impl VerifiableFunctions for VerifiablePresentation {
+    fn get_proof(&mut self) -> Result<Proof, String> {
+        self.proof.take().ok_or("VP is unsigned".to_string())
+    }
+    fn set_proof(&mut self, proof: Proof) -> Result<(), String> {
+        self.proof = Some(proof);
+        Ok(())
+    }
+    #[cfg(feature = "protobuf")]
+    fn serialize_protobuf(self) -> Vec<u8> {
+        Into::<verifiable_credentials::VerifiablePresentation>::into(self).encode_to_vec()
+    }
+    #[cfg(feature = "protobuf")]
+    fn deserialize_protobuf(reader: Vec<u8>) -> Result<Self, prost::DecodeError> {
+        Ok(Into::<VerifiablePresentation>::into(
+            verifiable_credentials::VerifiablePresentation::decode(reader.as_slice())?,
+        ))
+    }
+}
+
+impl VerifiableFunctions for VerifiableCredential {
+    fn get_proof(&mut self) -> Result<Proof, String> {
+        self.proof.take().ok_or("VC is unsigned".to_string())
+    }
+    fn set_proof(&mut self, proof: Proof) -> Result<(), String> {
+        self.proof = Some(proof);
+        Ok(())
+    }
+    #[cfg(feature = "protobuf")]
+    fn serialize_protobuf(self) -> Vec<u8> {
+        Into::<verifiable_credentials::VerifiableCredential>::into(self).encode_to_vec()
+    }
+    #[cfg(feature = "protobuf")]
+    fn deserialize_protobuf(reader: Vec<u8>) -> Result<Self, prost::DecodeError> {
+        Ok(Into::<VerifiableCredential>::into(
+            verifiable_credentials::VerifiableCredential::decode(reader.as_slice())?,
+        ))
+    }
+}
 
 impl VerifiablePresentation {
     pub fn new(verifiable_presentation: Value) -> Result<Self, String>
