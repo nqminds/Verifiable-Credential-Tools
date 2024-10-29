@@ -1,8 +1,0 @@
-[package]
-name = "example"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-vc_signing = {path = "../../vc_signing"}
-serde_json = "1.0.127"

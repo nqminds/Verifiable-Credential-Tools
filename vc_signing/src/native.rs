@@ -1,38 +1,108 @@
-use crate::{Proof, VerifiableCredential, VerifiablePresentation};
-use base64::{prelude::BASE64_STANDARD, Engine};
-use chrono::Utc;
+#[cfg(feature = "protobuf")]
+use crate::protobuf::verifiable_credentials;
+use chrono::{DateTime, Utc};
+#[cfg(feature = "protobuf")]
+use prost::Message;
 use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_string, Value};
 use std::fmt::Write;
+use url::Url;
 
-pub trait ProofTrait {
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct VerifiablePresentation {
+    pub id: Option<Url>,
+    #[serde(rename = "type")]
+    pub vp_type: TypeEnum,
+    #[serde(rename = "verifiableCredential")]
+    pub verifiable_credential: VerifiableCredentialEnum,
+    pub holder: Option<Url>,
+    pub proof: Option<Proof>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum VerifiableCredentialEnum {
+    Single(VerifiableCredential),
+    Multiple(Vec<VerifiableCredential>),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct VerifiableCredential {
+    #[serde(rename = "@context")]
+    pub context: Vec<Url>,
+    pub id: Option<Url>,
+    #[serde(rename = "type")]
+    pub vc_type: TypeEnum,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub issuer: Url,
+    #[serde(rename = "validFrom")]
+    pub valid_from: Option<DateTime<Utc>>,
+    #[serde(rename = "validUntil")]
+    pub valid_until: Option<DateTime<Utc>>,
+    #[serde(rename = "credentialStatus")]
+    pub credential_status: Option<StatusEnum>,
+    #[serde(rename = "credentialSchema")]
+    pub credential_schema: SchemaEnum,
+    #[serde(rename = "credentialSubject")]
+    pub credential_subject: Value,
+    pub proof: Option<Proof>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum TypeEnum {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum StatusEnum {
+    Single(CredentialStatus),
+    Multiple(Vec<CredentialStatus>),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct CredentialStatus {
+    pub id: Option<Url>,
+    #[serde(rename = "type")]
+    pub status_type: TypeEnum,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum SchemaEnum {
+    Single(CredentialSchema),
+    Multiple(Vec<CredentialSchema>),
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(deny_unknown_fields)]
+pub struct CredentialSchema {
+    pub id: Url,
+    #[serde(rename = "type")]
+    pub credential_type: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Proof {
+    #[serde(rename = "type")]
+    pub proof_type: String,
+    pub jws: Vec<u8>,
+    #[serde(rename = "proofPurpose")]
+    pub proof_purpose: String,
+    pub created: DateTime<Utc>,
+}
+
+pub trait VerifiableFunctions {
     fn get_proof(&mut self) -> Result<Proof, String>;
     fn set_proof(&mut self, proof: Proof) -> Result<(), String>;
-}
-
-impl ProofTrait for VerifiablePresentation {
-    fn get_proof(&mut self) -> Result<Proof, String> {
-        self.proof.take().ok_or("VP is unsigned".to_string())
-    }
-    fn set_proof(&mut self, proof: Proof) -> Result<(), String> {
-        self.proof = Some(proof);
-        Ok(())
-    }
-}
-
-impl ProofTrait for VerifiableCredential {
-    fn get_proof(&mut self) -> Result<Proof, String> {
-        self.proof.take().ok_or("VC is unsigned".to_string())
-    }
-    fn set_proof(&mut self, proof: Proof) -> Result<(), String> {
-        self.proof = Some(proof);
-        Ok(())
-    }
-}
-
-pub trait CryptoTrait: ProofTrait {
     fn sign(mut self, private_key: &[u8]) -> Result<Self, String>
     where
         Self: Serialize + Sized,
@@ -41,7 +111,7 @@ pub trait CryptoTrait: ProofTrait {
         let jws = private_key.sign(to_string(&self).map_err(|e| e.to_string())?.as_bytes());
         let proof = Proof {
             proof_type: "JsonWebSignature2020".to_string(),
-            jws: BASE64_STANDARD.encode(jws.as_ref()),
+            jws: jws.as_ref().to_vec(),
             proof_purpose: "assertionMethod".to_string(),
             created: Utc::now(),
         };
@@ -58,17 +128,73 @@ pub trait CryptoTrait: ProofTrait {
         public_key
             .verify(
                 to_string(&clone).map_err(|e| e.to_string())?.as_bytes(),
-                BASE64_STANDARD
-                    .decode(jws)
-                    .map_err(|e| e.to_string())?
-                    .as_slice(),
+                &jws,
             )
             .map_err(|e| e.to_string())
     }
+    #[cfg(feature = "cbor")]
+    fn serialize_cbor(&self) -> Result<Vec<u8>, ciborium::ser::Error<std::io::Error>>
+    where
+        Self: Serialize,
+    {
+        let mut buf = Vec::new();
+        ciborium::into_writer(self, &mut buf)?;
+        Ok(buf)
+    }
+    #[cfg(feature = "cbor")]
+    fn deserialize_cbor(reader: Vec<u8>) -> Result<Self, String>
+    where
+        Self: DeserializeOwned + Sized,
+    {
+        ciborium::from_reader(reader.as_slice()).map_err(|e| e.to_string())
+    }
+    #[cfg(feature = "protobuf")]
+    fn serialize_protobuf(self) -> Vec<u8>;
+    #[cfg(feature = "protobuf")]
+    fn deserialize_protobuf(reader: Vec<u8>) -> Result<Self, prost::DecodeError>
+    where
+        Self: Sized;
 }
 
-impl CryptoTrait for VerifiablePresentation {}
-impl CryptoTrait for VerifiableCredential {}
+impl VerifiableFunctions for VerifiablePresentation {
+    fn get_proof(&mut self) -> Result<Proof, String> {
+        self.proof.take().ok_or("VP is unsigned".to_string())
+    }
+    fn set_proof(&mut self, proof: Proof) -> Result<(), String> {
+        self.proof = Some(proof);
+        Ok(())
+    }
+    #[cfg(feature = "protobuf")]
+    fn serialize_protobuf(self) -> Vec<u8> {
+        Into::<verifiable_credentials::VerifiablePresentation>::into(self).encode_to_vec()
+    }
+    #[cfg(feature = "protobuf")]
+    fn deserialize_protobuf(reader: Vec<u8>) -> Result<Self, prost::DecodeError> {
+        Ok(Into::<VerifiablePresentation>::into(
+            verifiable_credentials::VerifiablePresentation::decode(reader.as_slice())?,
+        ))
+    }
+}
+
+impl VerifiableFunctions for VerifiableCredential {
+    fn get_proof(&mut self) -> Result<Proof, String> {
+        self.proof.take().ok_or("VC is unsigned".to_string())
+    }
+    fn set_proof(&mut self, proof: Proof) -> Result<(), String> {
+        self.proof = Some(proof);
+        Ok(())
+    }
+    #[cfg(feature = "protobuf")]
+    fn serialize_protobuf(self) -> Vec<u8> {
+        Into::<verifiable_credentials::VerifiableCredential>::into(self).encode_to_vec()
+    }
+    #[cfg(feature = "protobuf")]
+    fn deserialize_protobuf(reader: Vec<u8>) -> Result<Self, prost::DecodeError> {
+        Ok(Into::<VerifiableCredential>::into(
+            verifiable_credentials::VerifiableCredential::decode(reader.as_slice())?,
+        ))
+    }
+}
 
 impl VerifiablePresentation {
     pub fn new(verifiable_presentation: Value) -> Result<Self, String>
