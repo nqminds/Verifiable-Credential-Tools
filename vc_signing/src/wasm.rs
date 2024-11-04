@@ -93,45 +93,52 @@ struct CredentialSchema {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Proof {
     #[serde(rename = "type")]
-    proof_type: String,
-    jws: String,
+    pub proof_type: String,
+    pub created: DateTime<Utc>,
+    pub cryptosuite: String,
     #[serde(rename = "proofPurpose")]
-    proof_purpose: String,
-    created: DateTime<Utc>,
+    pub proof_purpose: String,
+    #[serde(rename = "proofValue")]
+    pub proof_value: String,
 }
 
 #[wasm_bindgen]
 impl VerifiablePresentation {
     #[wasm_bindgen(constructor)]
+    /// Creates a VerifiablePresentation struct from a JavaScript object
     pub fn new(verifiable_presentation: JsValue) -> Result<VerifiablePresentation, String> {
         serde_wasm_bindgen::from_value::<VerifiablePresentation>(verifiable_presentation)
             .map_err(|e| e.to_string())
     }
+    /// Signs a VerifiablePresentation with the given private key
     pub fn sign(mut self, private_key: &[u8]) -> Result<VerifiablePresentation, String> {
         let private_key = Ed25519KeyPair::from_pkcs8(private_key).map_err(|e| e.to_string())?;
-        let jws = private_key.sign(to_string(&self).map_err(|e| e.to_string())?.as_bytes());
+        let proof_value = private_key.sign(to_string(&self).map_err(|e| e.to_string())?.as_bytes());
         self.proof = Some(Proof {
-            proof_type: "JsonWebSignature2020".to_string(),
-            jws: BASE64_STANDARD.encode(jws.as_ref()),
-            proof_purpose: "assertionMethod".to_string(),
+            proof_type: "DataIntegrityProof".to_string(),
             created: Utc::now(),
+            cryptosuite: "eddsa-rdfc-2022".to_string(),
+            proof_purpose: "assertionMethod".to_string(),
+            proof_value: BASE64_STANDARD.encode(proof_value.as_ref()),
         });
         Ok(self)
     }
+    /// Verifies a VerifiablePresentation was signed by the owner of the given public key
     pub fn verify(&self, public_key: &[u8]) -> Result<(), String> {
         let mut clone = self.clone();
         let public_key = UnparsedPublicKey::new(&ED25519, public_key);
-        let jws = clone.proof.take().ok_or("VC is unsigned")?.jws;
+        let proof_value = clone.proof.take().ok_or("VC is unsigned")?.proof_value;
         public_key
             .verify(
                 to_string(&clone).map_err(|e| e.to_string())?.as_bytes(),
                 BASE64_STANDARD
-                    .decode(jws)
+                    .decode(proof_value)
                     .map_err(|e| e.to_string())?
                     .as_slice(),
             )
             .map_err(|e| e.to_string())
     }
+    /// Creates a JavaScript object from a VerifiablePresentation
     pub fn to_object(&self) -> Result<JsValue, String> {
         serde_wasm_bindgen::Serializer::json_compatible()
             .serialize_newtype_struct("", self)
@@ -142,6 +149,7 @@ impl VerifiablePresentation {
 #[wasm_bindgen]
 impl VerifiableCredential {
     #[wasm_bindgen(constructor)]
+    /// Creates a VerifiableCredential struct from a JavaScript object
     pub fn new(
         verifiable_credential: JsValue,
         schema: JsValue,
@@ -167,31 +175,35 @@ impl VerifiableCredential {
         }
         Ok(verifiable_credential)
     }
+    /// Signs a VerifiableCredential with the given private key
     pub fn sign(mut self, private_key: &[u8]) -> Result<VerifiableCredential, String> {
         let private_key = Ed25519KeyPair::from_pkcs8(private_key).map_err(|e| e.to_string())?;
-        let jws = private_key.sign(to_string(&self).map_err(|e| e.to_string())?.as_bytes());
+        let proof_value = private_key.sign(to_string(&self).map_err(|e| e.to_string())?.as_bytes());
         self.proof = Some(Proof {
-            proof_type: "JsonWebSignature2020".to_string(),
-            jws: BASE64_STANDARD.encode(jws.as_ref()),
-            proof_purpose: "assertionMethod".to_string(),
+            proof_type: "DataIntegrityProof".to_string(),
             created: Utc::now(),
+            cryptosuite: "eddsa-rdfc-2022".to_string(),
+            proof_purpose: "assertionMethod".to_string(),
+            proof_value: BASE64_STANDARD.encode(proof_value.as_ref()),
         });
         Ok(self)
     }
+    /// Verifies a VerifiableCredential was signed by the owner of the given public key
     pub fn verify(&self, public_key: &[u8]) -> Result<(), String> {
         let mut clone = self.clone();
         let public_key = UnparsedPublicKey::new(&ED25519, public_key);
-        let jws = clone.proof.take().ok_or("VC is unsigned")?.jws;
+        let proof_value = clone.proof.take().ok_or("VC is unsigned")?.proof_value;
         public_key
             .verify(
                 to_string(&clone).map_err(|e| e.to_string())?.as_bytes(),
                 BASE64_STANDARD
-                    .decode(jws)
+                    .decode(proof_value)
                     .map_err(|e| e.to_string())?
                     .as_slice(),
             )
             .map_err(|e| e.to_string())
     }
+    /// Creates a JavaScript object from a VerifiableCredential
     pub fn to_object(&self) -> Result<JsValue, String> {
         serde_wasm_bindgen::Serializer::json_compatible()
             .serialize_newtype_struct("", self)
@@ -207,15 +219,18 @@ pub struct KeyPairStruct {
 
 #[wasm_bindgen]
 impl KeyPairStruct {
+    /// Returns the private key contained in the struct
     pub fn private_key(&self) -> Vec<u8> {
         self.private_key.clone()
     }
+    /// Returns the public key contained in the struct
     pub fn public_key(&self) -> Vec<u8> {
         self.public_key.clone()
     }
 }
 
 #[wasm_bindgen]
+/// Generates a structure containing a PKCS#8 ED25519 public private key pair
 pub fn gen_keys() -> Result<KeyPairStruct, String> {
     let private_key = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new())
         .map_err(|e| e.to_string())?

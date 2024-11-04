@@ -94,45 +94,51 @@ pub struct CredentialSchema {
 pub struct Proof {
     #[serde(rename = "type")]
     pub proof_type: String,
-    pub jws: Vec<u8>,
+    pub created: DateTime<Utc>,
+    pub cryptosuite: String,
     #[serde(rename = "proofPurpose")]
     pub proof_purpose: String,
-    pub created: DateTime<Utc>,
+    #[serde(rename = "proofValue")]
+    pub proof_value: Vec<u8>,
 }
 
 pub trait VerifiableFunctions {
     fn get_proof(&mut self) -> Result<Proof, String>;
     fn set_proof(&mut self, proof: Proof) -> Result<(), String>;
+    /// Signs a verifiable structure with the given private key
     fn sign(mut self, private_key: &[u8]) -> Result<Self, String>
     where
         Self: Serialize + Sized,
     {
         let private_key = Ed25519KeyPair::from_pkcs8(private_key).map_err(|e| e.to_string())?;
-        let jws = private_key.sign(to_string(&self).map_err(|e| e.to_string())?.as_bytes());
-        let proof = Proof {
-            proof_type: "JsonWebSignature2020".to_string(),
-            jws: jws.as_ref().to_vec(),
-            proof_purpose: "assertionMethod".to_string(),
+        let proof_value = private_key.sign(to_string(&self).map_err(|e| e.to_string())?.as_bytes());
+
+        self.set_proof(Proof {
+            proof_type: "DataIntegrityProof".to_string(),
             created: Utc::now(),
-        };
-        self.set_proof(proof)?;
+            cryptosuite: "eddsa-rdfc-2022".to_string(),
+            proof_purpose: "assertionMethod".to_string(),
+            proof_value: proof_value.as_ref().to_vec(),
+        })?;
         Ok(self)
     }
+    /// Verifies a verifiable structure was signed by the owner of the given public key
     fn verify(&self, public_key: &[u8]) -> Result<(), String>
     where
         Self: Serialize + Clone,
     {
         let mut clone = self.clone();
         let public_key = UnparsedPublicKey::new(&ED25519, public_key);
-        let jws = clone.get_proof()?.jws;
+        let proof_value = clone.get_proof()?.proof_value;
         public_key
             .verify(
                 to_string(&clone).map_err(|e| e.to_string())?.as_bytes(),
-                &jws,
+                &proof_value,
             )
             .map_err(|e| e.to_string())
     }
     #[cfg(feature = "cbor")]
+    /// Serializes a verifiable structure into cbor
     fn serialize_cbor(&self) -> Result<Vec<u8>, ciborium::ser::Error<std::io::Error>>
     where
         Self: Serialize,
@@ -142,6 +148,7 @@ pub trait VerifiableFunctions {
         Ok(buf)
     }
     #[cfg(feature = "cbor")]
+    /// Deserializes cbor into a verifiable structure
     fn deserialize_cbor(reader: Vec<u8>) -> Result<Self, String>
     where
         Self: DeserializeOwned + Sized,
@@ -165,10 +172,12 @@ impl VerifiableFunctions for VerifiablePresentation {
         Ok(())
     }
     #[cfg(feature = "protobuf")]
+    /// Serializes a verifiable presentation structure into protobuf
     fn serialize_protobuf(self) -> Vec<u8> {
         Into::<verifiable_credentials::VerifiablePresentation>::into(self).encode_to_vec()
     }
     #[cfg(feature = "protobuf")]
+    /// Deserializes protobuf into a verifiable presentation structure
     fn deserialize_protobuf(reader: Vec<u8>) -> Result<Self, prost::DecodeError> {
         Ok(Into::<VerifiablePresentation>::into(
             verifiable_credentials::VerifiablePresentation::decode(reader.as_slice())?,
@@ -185,10 +194,12 @@ impl VerifiableFunctions for VerifiableCredential {
         Ok(())
     }
     #[cfg(feature = "protobuf")]
+    /// Serializes a verifiable credential structure into protobuf
     fn serialize_protobuf(self) -> Vec<u8> {
         Into::<verifiable_credentials::VerifiableCredential>::into(self).encode_to_vec()
     }
     #[cfg(feature = "protobuf")]
+    /// Deserializes protobuf into a verifiable credential structure
     fn deserialize_protobuf(reader: Vec<u8>) -> Result<Self, prost::DecodeError> {
         Ok(Into::<VerifiableCredential>::into(
             verifiable_credentials::VerifiableCredential::decode(reader.as_slice())?,
@@ -197,6 +208,7 @@ impl VerifiableFunctions for VerifiableCredential {
 }
 
 impl VerifiablePresentation {
+    /// Creates a verifiable presentation structure from a json value
     pub fn new(verifiable_presentation: Value) -> Result<Self, String>
     where
         Self: DeserializeOwned,
@@ -205,6 +217,7 @@ impl VerifiablePresentation {
     }
 }
 impl VerifiableCredential {
+    /// Creates a verifiable credential structure from a json value
     pub fn new(verifiable_credential: Value, schema: Value) -> Result<Self, String>
     where
         Self: DeserializeOwned,
@@ -230,6 +243,7 @@ impl VerifiableCredential {
     }
 }
 
+/// Generates a PKCS#8 ED25519 private & public key pair
 pub fn gen_keys() -> Result<(Vec<u8>, Vec<u8>), String> {
     let private_key = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new())
         .map_err(|e| e.to_string())?;
