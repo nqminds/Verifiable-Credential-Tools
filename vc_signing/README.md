@@ -1,7 +1,5 @@
-## Cryptographic tools for verifiable credentials and presentations
+## Cryptographic library for verifiable credentials and presentations
 
-### Supports WebAssembly (via wasm-pack)
+### Supports WebAssembly (built with wasm-pack)
 
-### WebAssembly Docs:
-
-### Native Docs:
+### RustDocs:
