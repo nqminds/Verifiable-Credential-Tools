@@ -1,7 +1,8 @@
 use std::{fs::{read, read_to_string}, path::PathBuf};
 use serde_json::from_str;
-use vc_signing::native::{gen_keys, VerifiableCredential, VerifiableFunctions};
 use clap::{Parser, Subcommand, ValueEnum};
+use vc_signing::native::VerifiableFunctions;
+use vc_signing::{KeyPairStruct, VerifiableCredential};
 
 #[derive(Parser)]
 struct Args {
@@ -80,9 +81,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Function::GenKeys { private_key_path, public_key_path } => {
-            let (private, public) = gen_keys()?;
-            std::fs::write(private_key_path, private)?;
-            std::fs::write(public_key_path, public)?;
+            let key_pair = KeyPairStruct::new()?;
+            std::fs::write(private_key_path, key_pair.private_key())?;
+            std::fs::write(public_key_path, key_pair.public_key()?)?;
         }
     };
     Ok(())

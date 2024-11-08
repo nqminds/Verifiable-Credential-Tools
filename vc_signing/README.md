@@ -1,3 +1,5 @@
-Protobuf feature requires protobuf compiler:\
-Debian: apt install protobuf-compiler\
-Arch: pacman -S protobuf
+## Cryptographic library for verifiable credentials and presentations
+
+### Supports WebAssembly (built with wasm-pack)
+
+### RustDocs:

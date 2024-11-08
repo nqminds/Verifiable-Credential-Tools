@@ -1,5 +1,3 @@
-use crate::native;
-use crate::native::{SchemaEnum, StatusEnum, TypeEnum, VerifiableCredentialEnum};
 use crate::protobuf::verifiable_credentials::verifiable_presentation::RepeatedCredential;
 use chrono::DateTime;
 use prost::Message;
@@ -17,33 +15,33 @@ pub mod verifiable_credentials {
     include!(concat!(env!("OUT_DIR"), "/verifiable_credentials.rs"));
 }
 
-impl From<VerifiablePresentation> for native::VerifiablePresentation {
+impl From<VerifiablePresentation> for crate::VerifiablePresentation {
     fn from(vp: VerifiablePresentation) -> Self {
         let id = vp.vp_id.map(|id| Url::from_str(&id).unwrap());
 
         let vp_type = match vp.vp_type.unwrap() {
             TypeStruct {
                 oneof_type: Some(OneofType::SingleType(string)),
-            } => TypeEnum::Single(string),
+            } => crate::TypeEnum::Single(string),
             TypeStruct {
                 oneof_type: Some(OneofType::MultipleType(RepeatedType { repeated_type })),
-            } => TypeEnum::Multiple(repeated_type),
+            } => crate::TypeEnum::Multiple(repeated_type),
             _ => panic!("Error in presentation type"),
         };
 
         let verifiable_credential = match vp.verifiable_credential.unwrap() {
             verifiable_presentation::VerifiableCredential::SingleVc(vc) => {
-                VerifiableCredentialEnum::Single(vc.into())
+                crate::VerifiableCredentialEnum::Single(vc.into())
             }
             verifiable_presentation::VerifiableCredential::MultipleVc(RepeatedCredential {
                 repeated_vc,
-            }) => VerifiableCredentialEnum::Multiple(
+            }) => crate::VerifiableCredentialEnum::Multiple(
                 repeated_vc.into_iter().map(|vc| vc.into()).collect(),
             ),
         };
 
         let holder = vp.holder.map(|holder| Url::from_str(&holder).unwrap());
-        let proof = vp.proof.map(|proof| native::Proof {
+        let proof = vp.proof.map(|proof| crate::Proof {
             proof_type: proof.proof_type,
             created: DateTime::from_timestamp(
                 proof.created.unwrap().seconds,
@@ -65,24 +63,24 @@ impl From<VerifiablePresentation> for native::VerifiablePresentation {
     }
 }
 
-impl From<native::VerifiablePresentation> for VerifiablePresentation {
-    fn from(vp: native::VerifiablePresentation) -> Self {
+impl From<crate::VerifiablePresentation> for VerifiablePresentation {
+    fn from(vp: crate::VerifiablePresentation) -> Self {
         let vp_id = vp.id.map(|id| id.to_string());
 
         let vp_type = match vp.vp_type {
-            TypeEnum::Multiple(vec) => Some(TypeStruct {
+            crate::TypeEnum::Multiple(vec) => Some(TypeStruct {
                 oneof_type: Some(OneofType::MultipleType(RepeatedType { repeated_type: vec })),
             }),
-            TypeEnum::Single(string) => Some(TypeStruct {
+            crate::TypeEnum::Single(string) => Some(TypeStruct {
                 oneof_type: Some(OneofType::SingleType(string)),
             }),
         };
 
         let verifiable_credential = match vp.verifiable_credential {
-            VerifiableCredentialEnum::Single(vc) => Some(
+            crate::VerifiableCredentialEnum::Single(vc) => Some(
                 verifiable_presentation::VerifiableCredential::SingleVc(vc.into()),
             ),
-            VerifiableCredentialEnum::Multiple(vec) => Some(
+            crate::VerifiableCredentialEnum::Multiple(vec) => Some(
                 verifiable_presentation::VerifiableCredential::MultipleVc(RepeatedCredential {
                     repeated_vc: vec.into_iter().map(|vc| vc.into()).collect(),
                 }),
@@ -109,7 +107,7 @@ impl From<native::VerifiablePresentation> for VerifiablePresentation {
     }
 }
 
-impl From<VerifiableCredential> for native::VerifiableCredential {
+impl From<VerifiableCredential> for crate::VerifiableCredential {
     fn from(vc: VerifiableCredential) -> Self {
         let context = vc
             .context
@@ -119,10 +117,10 @@ impl From<VerifiableCredential> for native::VerifiableCredential {
 
         let credential_schema = match vc.credential_schema.unwrap() {
             CredentialSchema::MultipleSchema(RepeatedCredentialSchema { repeated_schema }) => {
-                SchemaEnum::Multiple(
+                crate::SchemaEnum::Multiple(
                     repeated_schema
                         .iter()
-                        .map(|schema| native::CredentialSchema {
+                        .map(|schema| crate::CredentialSchema {
                             id: Url::from_str(&schema.schema_id).unwrap(),
                             credential_type: schema.schema_type.clone(),
                         })
@@ -132,7 +130,7 @@ impl From<VerifiableCredential> for native::VerifiableCredential {
             CredentialSchema::SingleSchema(CredentialSchemaStruct {
                 schema_id,
                 schema_type,
-            }) => SchemaEnum::Single(native::CredentialSchema {
+            }) => crate::SchemaEnum::Single(crate::CredentialSchema {
                 id: Url::from_str(&schema_id).unwrap(),
                 credential_type: schema_type,
             }),
@@ -143,10 +141,10 @@ impl From<VerifiableCredential> for native::VerifiableCredential {
                 .map(|credential_status| match credential_status {
                     CredentialStatus::MultipleStatus(RepeatedCredentialStatus {
                         repeated_status,
-                    }) => StatusEnum::Multiple(
+                    }) => crate::StatusEnum::Multiple(
                         repeated_status
                             .iter()
-                            .map(|status| native::CredentialStatus {
+                            .map(|status| crate::CredentialStatus {
                                 id: status
                                     .status_id
                                     .clone()
@@ -154,13 +152,13 @@ impl From<VerifiableCredential> for native::VerifiableCredential {
                                 status_type: match status.status_type.clone().unwrap() {
                                     TypeStruct {
                                         oneof_type: Some(OneofType::SingleType(single_type)),
-                                    } => TypeEnum::Single(single_type),
+                                    } => crate::TypeEnum::Single(single_type),
                                     TypeStruct {
                                         oneof_type:
                                             Some(OneofType::MultipleType(RepeatedType {
                                                 repeated_type,
                                             })),
-                                    } => TypeEnum::Multiple(repeated_type),
+                                    } => crate::TypeEnum::Multiple(repeated_type),
                                     _ => panic!("Error in credential status"),
                                 },
                             })
@@ -169,16 +167,16 @@ impl From<VerifiableCredential> for native::VerifiableCredential {
                     CredentialStatus::SingleStatus(CredentialStatusStruct {
                         status_type,
                         status_id,
-                    }) => StatusEnum::Single(native::CredentialStatus {
+                    }) => crate::StatusEnum::Single(crate::CredentialStatus {
                         id: status_id.map(|id| Url::from_str(&id).unwrap()),
                         status_type: match status_type.unwrap() {
                             TypeStruct {
                                 oneof_type: Some(OneofType::SingleType(single_type)),
-                            } => TypeEnum::Single(single_type),
+                            } => crate::TypeEnum::Single(single_type),
                             TypeStruct {
                                 oneof_type:
                                     Some(OneofType::MultipleType(RepeatedType { repeated_type })),
-                            } => TypeEnum::Multiple(repeated_type),
+                            } => crate::TypeEnum::Multiple(repeated_type),
                             _ => panic!("Error in credential status"),
                         },
                     }),
@@ -195,7 +193,7 @@ impl From<VerifiableCredential> for native::VerifiableCredential {
             .valid_until
             .map(|x| DateTime::from_timestamp(x.seconds, x.nanos as u32).unwrap());
 
-        let proof = vc.proof.map(|proof| native::Proof {
+        let proof = vc.proof.map(|proof| crate::Proof {
             proof_type: proof.proof_type,
             created: DateTime::from_timestamp(
                 proof.created.unwrap().seconds,
@@ -210,10 +208,10 @@ impl From<VerifiableCredential> for native::VerifiableCredential {
         let vc_type = match vc.vc_type.unwrap() {
             TypeStruct {
                 oneof_type: Some(OneofType::SingleType(vc_type)),
-            } => TypeEnum::Single(vc_type),
+            } => crate::TypeEnum::Single(vc_type),
             TypeStruct {
                 oneof_type: Some(OneofType::MultipleType(RepeatedType { repeated_type })),
-            } => TypeEnum::Multiple(repeated_type),
+            } => crate::TypeEnum::Multiple(repeated_type),
             _ => panic!("Error in vc type"),
         };
 
@@ -234,8 +232,8 @@ impl From<VerifiableCredential> for native::VerifiableCredential {
     }
 }
 
-impl From<native::VerifiableCredential> for VerifiableCredential {
-    fn from(vc: native::VerifiableCredential) -> Self {
+impl From<crate::VerifiableCredential> for VerifiableCredential {
+    fn from(vc: crate::VerifiableCredential) -> Self {
         let context = vc
             .context
             .iter()
@@ -244,10 +242,10 @@ impl From<native::VerifiableCredential> for VerifiableCredential {
         let vc_id = vc.id.map(|id| id.to_string());
 
         let vc_type = match vc.vc_type {
-            TypeEnum::Single(vc_type) => Some(TypeStruct {
+            crate::TypeEnum::Single(vc_type) => Some(TypeStruct {
                 oneof_type: Some(OneofType::SingleType(vc_type)),
             }),
-            TypeEnum::Multiple(vc_type) => Some(TypeStruct {
+            crate::TypeEnum::Multiple(vc_type) => Some(TypeStruct {
                 oneof_type: Some(OneofType::MultipleType(RepeatedType {
                     repeated_type: vc_type,
                 })),
@@ -262,13 +260,13 @@ impl From<native::VerifiableCredential> for VerifiableCredential {
         });
 
         let credential_schema = match vc.credential_schema {
-            SchemaEnum::Single(credential_schema) => {
+            crate::SchemaEnum::Single(credential_schema) => {
                 Some(CredentialSchema::SingleSchema(CredentialSchemaStruct {
                     schema_id: credential_schema.id.to_string(),
                     schema_type: credential_schema.credential_type,
                 }))
             }
-            SchemaEnum::Multiple(credential_schema) => {
+            crate::SchemaEnum::Multiple(credential_schema) => {
                 Some(CredentialSchema::MultipleSchema(RepeatedCredentialSchema {
                     repeated_schema: credential_schema
                         .iter()
@@ -289,22 +287,22 @@ impl From<native::VerifiableCredential> for VerifiableCredential {
         let credential_status =
             vc.credential_status
                 .map(|credential_status| match credential_status {
-                    StatusEnum::Single(credential_status) => {
+                    crate::StatusEnum::Single(credential_status) => {
                         CredentialStatus::SingleStatus(CredentialStatusStruct {
                             status_id: credential_status.id.map(|id| id.to_string()),
                             status_type: Some(TypeStruct {
                                 oneof_type: Some(match credential_status.status_type {
-                                    TypeEnum::Single(status_type) => {
+                                    crate::TypeEnum::Single(status_type) => {
                                         OneofType::SingleType(status_type)
                                     }
-                                    TypeEnum::Multiple(repeated_type) => {
+                                    crate::TypeEnum::Multiple(repeated_type) => {
                                         OneofType::MultipleType(RepeatedType { repeated_type })
                                     }
                                 }),
                             }),
                         })
                     }
-                    StatusEnum::Multiple(credential_status) => {
+                    crate::StatusEnum::Multiple(credential_status) => {
                         CredentialStatus::MultipleStatus(RepeatedCredentialStatus {
                             repeated_status: credential_status
                                 .iter()
@@ -312,10 +310,10 @@ impl From<native::VerifiableCredential> for VerifiableCredential {
                                     status_id: status.id.clone().map(|id| id.to_string()),
                                     status_type: Some(TypeStruct {
                                         oneof_type: Some(match status.status_type.clone() {
-                                            TypeEnum::Single(status_type) => {
+                                            crate::TypeEnum::Single(status_type) => {
                                                 OneofType::SingleType(status_type)
                                             }
-                                            TypeEnum::Multiple(repeated_type) => {
+                                            crate::TypeEnum::Multiple(repeated_type) => {
                                                 OneofType::MultipleType(RepeatedType {
                                                     repeated_type,
                                                 })
