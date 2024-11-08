@@ -30,6 +30,10 @@ ciborium = {version = "0.2.2", optional = true}
 [build-dependencies]
 prost-build = {version = "0.13.3", optional = true}
 
+[dev-dependencies]
+uuid = {version = "1.11.0", features = ["v4"]}
+chrono = "0.4.38"
+
 [features]
 protobuf = ["dep:prost-build", "dep:prost", "dep:prost-types"]
 cbor = ["dep:ciborium"]
