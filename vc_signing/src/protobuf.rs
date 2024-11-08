@@ -1,5 +1,5 @@
 use crate::native;
-use crate::native::{Proof, SchemaEnum, StatusEnum, TypeEnum, VerifiableCredentialEnum};
+use crate::native::{SchemaEnum, StatusEnum, TypeEnum, VerifiableCredentialEnum};
 use crate::protobuf::verifiable_credentials::verifiable_presentation::RepeatedCredential;
 use chrono::DateTime;
 use prost::Message;
@@ -43,16 +43,16 @@ impl From<VerifiablePresentation> for native::VerifiablePresentation {
         };
 
         let holder = vp.holder.map(|holder| Url::from_str(&holder).unwrap());
-
-        let proof = vp.proof.map(|proof| Proof {
+        let proof = vp.proof.map(|proof| native::Proof {
             proof_type: proof.proof_type,
-            jws: proof.jws,
-            proof_purpose: proof.proof_purpose,
             created: DateTime::from_timestamp(
                 proof.created.unwrap().seconds,
                 proof.created.unwrap().nanos as u32,
             )
             .unwrap(),
+            cryptosuite: proof.cryptosuite,
+            proof_purpose: proof.proof_purpose,
+            proof_value: proof.proof_value,
         });
 
         Self {
@@ -93,9 +93,10 @@ impl From<native::VerifiablePresentation> for VerifiablePresentation {
 
         let proof = vp.proof.map(|proof| verifiable_credentials::Proof {
             proof_type: proof.proof_type,
-            jws: proof.jws,
-            proof_purpose: proof.proof_purpose,
             created: Some(prost_types::Timestamp::from_str(&proof.created.to_rfc3339()).unwrap()),
+            cryptosuite: proof.cryptosuite,
+            proof_purpose: proof.proof_purpose,
+            proof_value: proof.proof_value,
         });
 
         Self {
@@ -196,13 +197,14 @@ impl From<VerifiableCredential> for native::VerifiableCredential {
 
         let proof = vc.proof.map(|proof| native::Proof {
             proof_type: proof.proof_type,
-            jws: proof.jws,
-            proof_purpose: proof.proof_purpose,
             created: DateTime::from_timestamp(
                 proof.created.unwrap().seconds,
                 proof.created.unwrap().nanos as u32,
             )
             .unwrap(),
+            cryptosuite: proof.cryptosuite,
+            proof_purpose: proof.proof_purpose,
+            proof_value: proof.proof_value,
         });
 
         let vc_type = match vc.vc_type.unwrap() {
@@ -328,9 +330,10 @@ impl From<native::VerifiableCredential> for VerifiableCredential {
 
         let proof = vc.proof.map(|proof| verifiable_credentials::Proof {
             proof_type: proof.proof_type,
-            jws: proof.jws,
-            proof_purpose: proof.proof_purpose,
             created: Some(prost_types::Timestamp::from_str(&proof.created.to_rfc3339()).unwrap()),
+            cryptosuite: proof.cryptosuite,
+            proof_purpose: proof.proof_purpose,
+            proof_value: proof.proof_value,
         });
 
         Self {
