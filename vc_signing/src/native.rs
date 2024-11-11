@@ -4,7 +4,7 @@ use crate::{Proof, VerifiableCredential, VerifiablePresentation};
 use chrono::Utc;
 #[cfg(feature = "protobuf")]
 use prost::Message;
-use ring::signature::{Ed25519KeyPair, UnparsedPublicKey, ED25519};
+use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::{from_value, to_string, Value};
@@ -146,5 +146,25 @@ impl VerifiableCredential {
             }));
         }
         Ok(verifiable_credential)
+    }
+}
+
+pub struct SignatureKeyPair {
+    pub private_key: Vec<u8>,
+    pub public_key: Vec<u8>,
+}
+
+impl SignatureKeyPair {
+    pub fn new() -> Result<Self, ring::error::Unspecified> {
+        let key_pair = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new())?;
+        let private_key = key_pair.as_ref().to_vec();
+        let public_key = Ed25519KeyPair::from_pkcs8(&private_key)?
+            .public_key()
+            .as_ref()
+            .to_vec();
+        Ok(Self {
+            private_key,
+            public_key,
+        })
     }
 }

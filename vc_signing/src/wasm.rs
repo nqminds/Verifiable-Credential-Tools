@@ -1,7 +1,7 @@
 use crate::{Proof, VerifiableCredential, VerifiablePresentation};
 use base64::{prelude::BASE64_STANDARD, Engine};
 use chrono::Utc;
-use ring::signature::{Ed25519KeyPair, UnparsedPublicKey, ED25519};
+use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
 use serde::Serializer;
 use serde_json::to_string;
 use std::fmt::Write;
@@ -114,5 +114,36 @@ impl VerifiableCredential {
         serde_wasm_bindgen::Serializer::json_compatible()
             .serialize_newtype_struct("", self)
             .map_err(|e| e.to_string())
+    }
+}
+
+#[wasm_bindgen]
+pub struct SignatureKeyPair {
+    private_key: Vec<u8>,
+    public_key: Vec<u8>,
+}
+
+#[wasm_bindgen]
+impl SignatureKeyPair {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Result<Self, String> {
+        let key_pair = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new())
+            .map_err(|e| e.to_string())?;
+        let private_key = key_pair.as_ref().to_vec();
+        let public_key = Ed25519KeyPair::from_pkcs8(&private_key)
+            .map_err(|e| e.to_string())?
+            .public_key()
+            .as_ref()
+            .to_vec();
+        Ok(Self {
+            private_key,
+            public_key,
+        })
+    }
+    pub fn public_key(&self) -> Vec<u8> {
+        self.public_key.clone()
+    }
+    pub fn private_key(&self) -> Vec<u8> {
+        self.private_key.clone()
     }
 }
