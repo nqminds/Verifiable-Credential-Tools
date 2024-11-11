@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use ring::signature::{Ed25519KeyPair, KeyPair};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;
@@ -108,36 +107,4 @@ pub struct Proof {
     #[cfg(target_family = "wasm")]
     #[serde(rename = "proofValue")]
     proof_value: String,
-}
-
-#[cfg_attr(target_family = "wasm", wasm_bindgen)]
-pub struct KeyPairStruct {
-    private_key: Vec<u8>,
-}
-
-#[cfg_attr(target_family = "wasm", wasm_bindgen)]
-impl KeyPairStruct {
-    #[cfg_attr(target_family = "wasm", wasm_bindgen(constructor))]
-    pub fn new() -> Result<Self, String> {
-        let key_pair = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new())
-            .map_err(|e| e.to_string())?;
-        Ok(Self {
-            private_key: key_pair.as_ref().to_vec(),
-        })
-    }
-    pub fn public_key(&self) -> Result<Vec<u8>, String> {
-        Ok(Ed25519KeyPair::from_pkcs8(self.private_key.as_ref())
-            .map_err(|e| e.to_string())?
-            .public_key()
-            .as_ref()
-            .to_vec())
-    }
-    #[cfg(not(target_family = "wasm"))]
-    pub fn private_key(&self) -> &[u8] {
-        self.private_key.as_ref()
-    }
-    #[cfg(target_family = "wasm")]
-    pub fn private_key(&self) -> Vec<u8> {
-        self.private_key.clone()
-    }
 }
