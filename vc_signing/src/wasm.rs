@@ -67,7 +67,7 @@ impl VerifiableCredential {
                 .map_err(|e| e.to_string())?;
         let mut scope = valico::json_schema::Scope::new();
         let schema = scope
-            .compile_and_return(schema.credential_subject, true)
+            .compile_and_return(schema.credential_subject, false)
             .map_err(|e| e.to_string())?;
         let result = schema.validate(&verifiable_credential.credential_subject);
         if !result.is_valid() {
