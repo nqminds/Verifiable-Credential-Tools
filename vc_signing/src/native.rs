@@ -7,8 +7,9 @@ use prost::Message;
 use ring::signature::{Ed25519KeyPair, KeyPair, UnparsedPublicKey, ED25519};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use serde_json::{from_value, to_string, Value};
-use std::fmt::Write;
+use serde_json::{from_value, json, to_string, to_string_pretty, to_value, Value};
+use std::fmt::{Display, Formatter, Write};
+use base64::{prelude::BASE64_STANDARD, Engine};
 
 pub trait VerifiableFunctions {
     fn get_proof(&mut self) -> Result<Proof, String>;
@@ -166,5 +167,27 @@ impl SignatureKeyPair {
             private_key,
             public_key,
         })
+    }
+}
+
+impl Display for VerifiableCredential {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut vc = to_value(self).map_err(|_| std::fmt::Error)?;
+        if self.proof.is_some() {
+            let proof_value = BASE64_STANDARD.encode(self.proof.clone().unwrap().proof_value);
+            vc["proof"]["proofValue"] = json!(proof_value);
+        }
+        write!(f, "{}", to_string_pretty(&vc).map_err(|_| std::fmt::Error)?)
+    }
+}
+
+impl Display for VerifiablePresentation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut vp = to_value(self).map_err(|_| std::fmt::Error)?;
+        if self.proof.is_some() {
+            let proof_value = BASE64_STANDARD.encode(self.proof.clone().unwrap().proof_value);
+            vp["proof"]["proofValue"] = json!(proof_value);
+        }
+        write!(f, "{}", to_string_pretty(&vp).map_err(|_| std::fmt::Error)?)
     }
 }
