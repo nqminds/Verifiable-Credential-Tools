@@ -1,0 +1,9 @@
+[package]
+name = "vc_tools_cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+vc_signing = {path = "../vc_signing", features = ["cbor", "protobuf"]}
+serde_json = "1.0.128"
+clap = {version = "4.5.18", features = ["derive"]}

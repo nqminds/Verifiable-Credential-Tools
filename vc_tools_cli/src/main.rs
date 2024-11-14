@@ -108,7 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let SignatureKeyPair {
                 private_key,
                 public_key,
-            } = SignatureKeyPair::new();
+            } = SignatureKeyPair::new().map_err(|_| "Failed to generate key pair")?;
             std::fs::write(private_key_path, private_key)?;
             std::fs::write(public_key_path, public_key)?;
         }
