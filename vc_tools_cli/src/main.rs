@@ -18,6 +18,8 @@ struct Args {
 enum Function {
     Sign {
         vc_path: PathBuf,
+        #[clap(long, short)]
+        generate: bool,
         schema_path: PathBuf,
         private_key_path: PathBuf,
         output_path: PathBuf,
@@ -57,7 +59,7 @@ fn write_format(
     match format {
         Format::Protobuf => std::fs::write(path, vc.serialize_protobuf())?,
         Format::Cbor => std::fs::write(path, vc.serialize_cbor()?)?,
-        Format::Json => std::fs::write(path, serde_json::to_string(&vc)?)?,
+        Format::Json => std::fs::write(path, serde_json::to_string_pretty(&vc)?)?,
     };
     Ok(())
 }
@@ -67,6 +69,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     match args.function {
         Function::Sign {
             vc_path,
+            generate,
             schema_path,
             private_key_path,
             output_path,
@@ -74,7 +77,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         } => {
             let vc: serde_json::Value = from_str(&read_to_string(vc_path)?)?;
             let schema: serde_json::Value = from_str(&read_to_string(schema_path)?)?;
-            let vc = VerifiableCredential::new(vc, schema)?.sign(&read(private_key_path)?)?;
+            let vc = match generate {
+                true => VerifiableCredential::create(vc, schema)?,
+                false => VerifiableCredential::new(vc, schema)?,
+            }.sign(&read(private_key_path)?)?;
             write_format(format, &output_path, vc)?;
         }
         Function::Verify {

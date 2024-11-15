@@ -60,5 +60,6 @@ fn basic_test() {
 
 #[test]
 fn create_vc() {
-    VerifiableCredential::create(json!({"id": "example_id"}), schema()).unwrap();
+    let schema = schema().get("credentialSubject").unwrap().clone();
+    VerifiableCredential::create(json!({"id": "example_id"}), schema).unwrap();
 }
