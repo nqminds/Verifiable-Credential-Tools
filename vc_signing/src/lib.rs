@@ -1,15 +1,16 @@
 use chrono::{DateTime, Utc};
+use ring::signature::{Ed25519KeyPair, KeyPair};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;
 #[cfg(target_family = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
-#[cfg(not(target_family = "wasm"))]
-pub mod native;
+#[cfg(feature = "cbor")]
+mod cbor;
 #[cfg(feature = "protobuf")]
 mod protobuf;
-#[cfg(target_family = "wasm")]
-pub mod wasm;
+mod verifiable_credential;
+mod verifiable_presentation;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
@@ -101,10 +102,46 @@ pub struct Proof {
     cryptosuite: String,
     #[serde(rename = "proofPurpose")]
     proof_purpose: String,
-    #[cfg(not(target_family = "wasm"))]
-    #[serde(rename = "proofValue")]
-    proof_value: Vec<u8>,
-    #[cfg(target_family = "wasm")]
     #[serde(rename = "proofValue")]
     proof_value: String,
+}
+
+#[cfg(not(target_family = "wasm"))]
+pub struct SignatureKeyPair {
+    pub private_key: Vec<u8>,
+    pub public_key: Vec<u8>,
+}
+
+#[cfg(target_family = "wasm")]
+#[wasm_bindgen]
+pub struct SignatureKeyPair {
+    private_key: Vec<u8>,
+    public_key: Vec<u8>,
+}
+
+#[cfg_attr(target_family = "wasm", wasm_bindgen)]
+impl SignatureKeyPair {
+    #[cfg_attr(target_family = "wasm", wasm_bindgen(constructor))]
+    pub fn new() -> Result<Self, String> {
+        let key_pair = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new())
+            .map_err(|_| "Error generating key pair")?;
+        let public_key = Ed25519KeyPair::from_pkcs8(key_pair.as_ref())
+            .map_err(|_| "Error generating key pair")?
+            .public_key()
+            .as_ref()
+            .to_vec();
+        let private_key = key_pair.as_ref().to_vec();
+        Ok(Self {
+            private_key,
+            public_key,
+        })
+    }
+    #[cfg(target_family = "wasm")]
+    pub fn public_key(&self) -> Vec<u8> {
+        self.public_key.clone()
+    }
+    #[cfg(target_family = "wasm")]
+    pub fn private_key(&self) -> Vec<u8> {
+        self.private_key.clone()
+    }
 }
