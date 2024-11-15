@@ -1,11 +1,12 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use serde_json::from_str;
+use std::error::Error;
+use std::path::Path;
 use std::{
     fs::{read, read_to_string},
     path::PathBuf,
 };
-use vc_signing::native::{SignatureKeyPair, VerifiableFunctions};
-use vc_signing::VerifiableCredential;
+use vc_signing::{SignatureKeyPair, VerifiableCredential};
 
 #[derive(Parser)]
 struct Args {
@@ -48,7 +49,20 @@ enum Format {
     Json,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn write_format(
+    format: Format,
+    path: &Path,
+    vc: VerifiableCredential,
+) -> Result<(), Box<dyn Error>> {
+    match format {
+        Format::Protobuf => std::fs::write(path, vc.serialize_protobuf())?,
+        Format::Cbor => std::fs::write(path, vc.serialize_cbor()?)?,
+        Format::Json => std::fs::write(path, serde_json::to_string(&vc)?)?,
+    };
+    Ok(())
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     match args.function {
         Function::Sign {
@@ -61,11 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let vc: serde_json::Value = from_str(&read_to_string(vc_path)?)?;
             let schema: serde_json::Value = from_str(&read_to_string(schema_path)?)?;
             let vc = VerifiableCredential::new(vc, schema)?.sign(&read(private_key_path)?)?;
-            match format {
-                Format::Protobuf => std::fs::write(output_path, vc.serialize_protobuf())?,
-                Format::Cbor => std::fs::write(output_path, vc.serialize_cbor()?)?,
-                Format::Json => std::fs::write(output_path, serde_json::to_string(&vc)?)?,
-            }
+            write_format(format, &output_path, vc)?;
         }
         Function::Verify {
             vc_path,
@@ -80,11 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             format,
         } => {
             let vc: VerifiableCredential = from_str(&read_to_string(vc_path)?)?;
-            match format {
-                Format::Protobuf => std::fs::write(output_path, vc.serialize_protobuf())?,
-                Format::Cbor => std::fs::write(output_path, vc.serialize_cbor()?)?,
-                Format::Json => std::fs::write(output_path, serde_json::to_string(&vc)?)?,
-            };
+            write_format(format, &output_path, vc)?;
         }
         Function::Decode {
             vc_path,
@@ -108,7 +114,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let SignatureKeyPair {
                 private_key,
                 public_key,
-            } = SignatureKeyPair::new().map_err(|_| "Failed to generate key pair")?;
+            } = SignatureKeyPair::new()?;
             std::fs::write(private_key_path, private_key)?;
             std::fs::write(public_key_path, public_key)?;
         }
