@@ -105,9 +105,9 @@ impl VerifiableCredential {
             .map_err(|_| "Failed to verify".into())
     }
     #[cfg(not(target_family = "wasm"))]
-    /// Creates a verifiable credential structure from a json credential subject with random UUIDs
+    /// Creates a verifiable credential structure from json raw subject & schema with random UUIDs
     pub fn create(subject: Value, schema: Value) -> Result<Self, String> {
-        let vc = json!({
+        let create = |input| Ok::<Value, String>(json!({
             "@context": vec![Url::parse("https://www.w3.org/ns/credentials/v2").map_err(|e| e.to_string())?],
             "id": Some(Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?),
             "type": TypeEnum::Single("VerifiableCredential".to_string()),
@@ -116,9 +116,9 @@ impl VerifiableCredential {
                 id: Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?,
                 credential_type: "Example".to_string(),
             }),
-            "credentialSubject": subject
-        });
-        Self::new(vc, schema)
+            "credentialSubject": input
+        }));
+        Self::new(create(subject)?, create(schema)?)
     }
     #[cfg(target_family = "wasm")]
     pub fn to_object(&self) -> Result<JsValue, JsError> {
