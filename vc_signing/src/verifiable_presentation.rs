@@ -4,15 +4,15 @@ use chrono::Utc;
 use ring::signature::{Ed25519KeyPair, UnparsedPublicKey, ED25519};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-#[cfg(target_family = "wasm")]
-use serde::Serializer;
 use serde_json::to_string;
 #[cfg(not(target_family = "wasm"))]
 use serde_json::{from_value, Value};
 #[cfg(target_family = "wasm")]
-use serde_wasm_bindgen::from_value;
-#[cfg(target_family = "wasm")]
-use wasm_bindgen::{prelude::wasm_bindgen, JsError, JsValue};
+use {
+    serde::Serializer,
+    serde_wasm_bindgen::from_value,
+    wasm_bindgen::{prelude::wasm_bindgen, JsError, JsValue},
+};
 
 #[cfg_attr(target_family = "wasm", wasm_bindgen)]
 impl VerifiablePresentation {

@@ -4,15 +4,20 @@ use chrono::Utc;
 use ring::signature::{Ed25519KeyPair, UnparsedPublicKey, ED25519};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-#[cfg(target_family = "wasm")]
-use serde::Serializer;
 use serde_json::to_string;
 #[cfg(not(target_family = "wasm"))]
-use serde_json::{from_value, Value};
+use {
+    crate::{CredentialSchema, SchemaEnum, TypeEnum},
+    serde_json::{from_value, json, Value},
+    url::Url,
+    uuid::Uuid,
+};
 #[cfg(target_family = "wasm")]
-use serde_wasm_bindgen::from_value;
-#[cfg(target_family = "wasm")]
-use wasm_bindgen::{prelude::wasm_bindgen, JsError, JsValue};
+use {
+    serde::Serializer,
+    serde_wasm_bindgen::from_value,
+    wasm_bindgen::{prelude::wasm_bindgen, JsError, JsValue},
+};
 
 #[cfg_attr(target_family = "wasm", wasm_bindgen)]
 impl VerifiableCredential {
@@ -98,6 +103,22 @@ impl VerifiableCredential {
                 &proof,
             )
             .map_err(|_| "Failed to verify".into())
+    }
+    #[cfg(not(target_family = "wasm"))]
+    /// Creates a verifiable credential structure from a json credential subject with random UUIDs
+    pub fn create(subject: Value, schema: Value) -> Result<Self, String> {
+        let vc = json!({
+            "@context": vec![Url::parse("https://www.w3.org/ns/credentials/v2").map_err(|e| e.to_string())?],
+            "id": Some(Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?),
+            "type": TypeEnum::Single("VerifiableCredential".to_string()),
+            "issuer": Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?,
+            "credentialSchema": SchemaEnum::Single(CredentialSchema {
+                id: Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?,
+                credential_type: "Example".to_string(),
+            }),
+            "credentialSubject": subject
+        });
+        Self::new(vc, schema)
     }
     #[cfg(target_family = "wasm")]
     pub fn to_object(&self) -> Result<JsValue, JsError> {

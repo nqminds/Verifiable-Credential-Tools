@@ -1,14 +1,8 @@
-use serde_json::json;
+use serde_json::{json, Value};
 use vc_signing::{SignatureKeyPair, VerifiableCredential};
 
-#[test]
-fn test() {
-    let SignatureKeyPair {
-        private_key,
-        public_key,
-    } = SignatureKeyPair::new().unwrap();
-    let vc = VerifiableCredential::new(
-        json!({
+fn vc() -> Value {
+    json!({
             "@context": ["https://www.w3.org/ns/credentials/v2"],
             "credentialSchema": {
                 "id": "urn:uuid:ded1499c-c797-447a-8478-8d0fd7519834",
@@ -21,8 +15,11 @@ fn test() {
             "issuer": "urn:uuid:67cddd6f-727f-4aea-91d4-e5f314252671",
             "type": ["VerifiableCredential", "Example"],
             "validFrom": "2024-11-15T15:21:33.057003610Z"
-        }),
-        json!({
+        })
+}
+
+fn schema() -> Value {
+    json!({
             "@context": ["https://www.w3.org/ns/credentials/v2"],
             "credentialSchema": {
                 "id": "urn:uuid:442ea47b-3b2a-4602-a721-4cc22bdae9ce",
@@ -46,10 +43,22 @@ fn test() {
             "issuer": "urn:uuid:acf7b57c-0cab-4771-ad62-adb753923cc1",
             "type": ["VerifiableCredential", "Schema"],
             "validFrom": "2024-11-15T15:21:33.057078058Z"
-        }),
-    )
-    .unwrap()
+        })
+}
+
+#[test]
+fn basic_test() {
+    let SignatureKeyPair {
+        private_key,
+        public_key,
+    } = SignatureKeyPair::new().unwrap();
+    let vc = VerifiableCredential::new(vc(), schema()).unwrap()
     .sign(&private_key)
     .unwrap();
     assert!(vc.verify(&public_key).is_ok());
+}
+
+#[test]
+fn create_vc() {
+    VerifiableCredential::create(json!({"id": "example_id"}), schema()).unwrap();
 }
