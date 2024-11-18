@@ -107,20 +107,36 @@ impl VerifiableCredential {
     #[cfg(not(target_family = "wasm"))]
     /// Creates a VerifiableCredential structure from json raw subject & schema with random UUIDs
     pub fn create(subject: Value, schema: Value) -> Result<Self, String> {
-        let create = |input| {
-            Ok::<Value, String>(json!({
+        let create = |input, schema_id| -> Result<Value, String> {
+            Ok(json!({
                 "@context": vec![Url::parse("https://www.w3.org/ns/credentials/v2").map_err(|e| e.to_string())?],
                 "id": Some(Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?),
                 "type": TypeEnum::Single("VerifiableCredential".to_string()),
                 "issuer": Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?,
                 "credentialSchema": SchemaEnum::Single(CredentialSchema {
-                    id: Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?,
-                    credential_type: "Example".to_string(),
-                }),
-                "credentialSubject": input
+                    id: schema_id,
+                    credential_type: "JsonSchema".to_string(),}),
+                "credentialSubject": input,
             }))
         };
-        Self::new(create(subject)?, create(schema)?)
+        Self::new(
+            create(
+                subject,
+                Url::parse(
+                    schema
+                        .get("$id")
+                        .ok_or("No $id field in schema")?
+                        .as_str()
+                        .ok_or("$id is not str")?,
+                )
+                .map_err(|e| e.to_string())?,
+            )?,
+            create(
+                schema,
+                Url::parse("https://json-schema.org/draft/2020-12/schema")
+                    .map_err(|e| e.to_string())?,
+            )?,
+        )
     }
     #[cfg(target_family = "wasm")]
     /// Converts a VerifiableCredential to a JavaScript object
