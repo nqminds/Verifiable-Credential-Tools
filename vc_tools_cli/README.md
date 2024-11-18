@@ -1,12 +1,15 @@
 ## VC Tools CLI 
 Command line tool for performing various tasks with verifiable credentials
 
+## Build instructions (requires rust tool-chain):
+cargo build --release && cd ./target/release/
+
 ## Usage instructions
 Usage: `vc_tools_cli <COMMAND>`
 
 ### Available Commands:
 ### sign
-Takes the input path to a JSON formatted verifiable credential, JSON schema, and private key.\
+Takes the input path to a JSON verifiable credential and JSON schema verifiable credential OR a JSON credential subject and JSON schema (with the '-g' flag), and private key.\
 Signs the verifiable credential with the private key, and saves it to the specified output path, in the specified format (Protobuf, CBOR, or JSON).
 
 `sign <VC_PATH> <SCHEMA_PATH> <PRIVATE_KEY_PATH> <OUTPUT_PATH> <FORMAT>`
@@ -26,5 +29,3 @@ Takes the path to a Protobuf or CBOR verifiable credential, decodes it into JSON
 Generates a random ED25519 public/private key pair, and saves them to the specified respective file paths.
 
 `gen-keys <PRIVATE_KEY_PATH> <PUBLIC_KEY_PATH>`
-## Build instructions (requires rust tool-chain):
-cargo build --release
