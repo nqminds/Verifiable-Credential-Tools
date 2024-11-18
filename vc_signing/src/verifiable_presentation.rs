@@ -17,7 +17,7 @@ use {
 #[cfg_attr(target_family = "wasm", wasm_bindgen)]
 impl VerifiablePresentation {
     #[cfg(not(target_family = "wasm"))]
-    /// Creates a verifiable presentation structure from a json value
+    /// Creates a VerifiablePresentation structure from a json value
     pub fn new(verifiable_presentation: Value) -> Result<Self, String>
     where
         Self: DeserializeOwned,
@@ -66,6 +66,7 @@ impl VerifiablePresentation {
             .map_err(|_| "Failed to verify".into())
     }
     #[cfg(target_family = "wasm")]
+    /// Converts a VerifiablePresentation to a JavaScript object
     pub fn to_object(&self) -> Result<JsValue, JsError> {
         Ok(serde_wasm_bindgen::Serializer::json_compatible().serialize_newtype_struct("", self)?)
     }

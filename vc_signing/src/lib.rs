@@ -106,22 +106,22 @@ pub struct Proof {
     proof_value: String,
 }
 
-#[cfg(not(target_family = "wasm"))]
+#[cfg_attr(target_family = "wasm", wasm_bindgen)]
 pub struct SignatureKeyPair {
+    #[cfg(not(target_family = "wasm"))]
     pub private_key: Vec<u8>,
+    #[cfg(not(target_family = "wasm"))]
     pub public_key: Vec<u8>,
-}
-
-#[cfg(target_family = "wasm")]
-#[wasm_bindgen]
-pub struct SignatureKeyPair {
+    #[cfg(target_family = "wasm")]
     private_key: Vec<u8>,
+    #[cfg(target_family = "wasm")]
     public_key: Vec<u8>,
 }
 
 #[cfg_attr(target_family = "wasm", wasm_bindgen)]
 impl SignatureKeyPair {
     #[cfg_attr(target_family = "wasm", wasm_bindgen(constructor))]
+    /// Generates a new random ED25519 DSA public/private key pair
     pub fn new() -> Result<Self, String> {
         let key_pair = Ed25519KeyPair::generate_pkcs8(&ring::rand::SystemRandom::new())
             .map_err(|_| "Error generating key pair")?;
@@ -137,10 +137,12 @@ impl SignatureKeyPair {
         })
     }
     #[cfg(target_family = "wasm")]
+    /// Returns a copy of the public key
     pub fn public_key(&self) -> Vec<u8> {
         self.public_key.clone()
     }
     #[cfg(target_family = "wasm")]
+    /// Returns a copy of the private key
     pub fn private_key(&self) -> Vec<u8> {
         self.private_key.clone()
     }

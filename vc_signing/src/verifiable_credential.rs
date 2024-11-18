@@ -22,7 +22,7 @@ use {
 #[cfg_attr(target_family = "wasm", wasm_bindgen)]
 impl VerifiableCredential {
     #[cfg(not(target_family = "wasm"))]
-    /// Creates a verifiable credential structure from a json value
+    /// Creates a VerifiableCredential structure from a json value
     pub fn new(verifiable_credential: Value, schema: Value) -> Result<Self, String>
     where
         Self: DeserializeOwned,
@@ -105,22 +105,25 @@ impl VerifiableCredential {
             .map_err(|_| "Failed to verify".into())
     }
     #[cfg(not(target_family = "wasm"))]
-    /// Creates a verifiable credential structure from json raw subject & schema with random UUIDs
+    /// Creates a VerifiableCredential structure from json raw subject & schema with random UUIDs
     pub fn create(subject: Value, schema: Value) -> Result<Self, String> {
-        let create = |input| Ok::<Value, String>(json!({
-            "@context": vec![Url::parse("https://www.w3.org/ns/credentials/v2").map_err(|e| e.to_string())?],
-            "id": Some(Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?),
-            "type": TypeEnum::Single("VerifiableCredential".to_string()),
-            "issuer": Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?,
-            "credentialSchema": SchemaEnum::Single(CredentialSchema {
-                id: Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?,
-                credential_type: "Example".to_string(),
-            }),
-            "credentialSubject": input
-        }));
+        let create = |input| {
+            Ok::<Value, String>(json!({
+                "@context": vec![Url::parse("https://www.w3.org/ns/credentials/v2").map_err(|e| e.to_string())?],
+                "id": Some(Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?),
+                "type": TypeEnum::Single("VerifiableCredential".to_string()),
+                "issuer": Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?,
+                "credentialSchema": SchemaEnum::Single(CredentialSchema {
+                    id: Url::parse(&format!("urn:uuid:{}", Uuid::new_v4())).map_err(|e| e.to_string())?,
+                    credential_type: "Example".to_string(),
+                }),
+                "credentialSubject": input
+            }))
+        };
         Self::new(create(subject)?, create(schema)?)
     }
     #[cfg(target_family = "wasm")]
+    /// Converts a VerifiableCredential to a JavaScript object
     pub fn to_object(&self) -> Result<JsValue, JsError> {
         Ok(serde_wasm_bindgen::Serializer::json_compatible().serialize_newtype_struct("", self)?)
     }

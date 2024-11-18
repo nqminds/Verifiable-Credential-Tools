@@ -18,11 +18,11 @@ pub mod verifiable_credentials {
 }
 
 impl crate::VerifiablePresentation {
-    /// Serializes a verifiable presentation structure into protobuf
+    /// Serializes a VerifiablePresentation structure into protobuf
     pub fn serialize_protobuf(self) -> Vec<u8> {
         Into::<VerifiablePresentation>::into(self).encode_to_vec()
     }
-    /// Deserializes protobuf into a verifiable presentation structure
+    /// Deserializes protobuf into a VerifiablePresentation structure
     pub fn deserialize_protobuf(reader: Vec<u8>) -> Result<Self, prost::DecodeError> {
         Ok(Into::<Self>::into(VerifiablePresentation::decode(
             reader.as_slice(),
@@ -31,11 +31,11 @@ impl crate::VerifiablePresentation {
 }
 
 impl crate::VerifiableCredential {
-    /// Serializes a verifiable credential structure into protobuf
+    /// Serializes a VerifiableCredential structure into protobuf
     pub fn serialize_protobuf(self) -> Vec<u8> {
         Into::<VerifiableCredential>::into(self).encode_to_vec()
     }
-    /// Deserializes protobuf into a verifiable credential structure
+    /// Deserializes protobuf into a VerifiableCredential structure
     pub fn deserialize_protobuf(reader: Vec<u8>) -> Result<Self, prost::DecodeError> {
         Ok(Into::<Self>::into(VerifiableCredential::decode(
             reader.as_slice(),

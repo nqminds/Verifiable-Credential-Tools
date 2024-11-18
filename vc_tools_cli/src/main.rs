@@ -80,7 +80,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             let vc = match generate {
                 true => VerifiableCredential::create(vc, schema)?,
                 false => VerifiableCredential::new(vc, schema)?,
-            }.sign(&read(private_key_path)?)?;
+            }
+            .sign(&read(private_key_path)?)?;
             write_format(format, &output_path, vc)?;
         }
         Function::Verify {

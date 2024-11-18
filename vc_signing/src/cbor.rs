@@ -2,7 +2,7 @@ use crate::{VerifiableCredential, VerifiablePresentation};
 use serde::{de::DeserializeOwned, Serialize};
 
 impl VerifiablePresentation {
-    /// Serializes a verifiable structure into cbor
+    /// Serializes a VerifiablePresentation structure into cbor
     pub fn serialize_cbor(&self) -> Result<Vec<u8>, String>
     where
         Self: Serialize,
@@ -11,7 +11,7 @@ impl VerifiablePresentation {
         ciborium::into_writer(self, &mut buf).map_err(|e| e.to_string())?;
         Ok(buf)
     }
-    /// Deserializes cbor into a verifiable structure
+    /// Deserializes cbor into a VerifiablePresentation structure
     pub fn deserialize_cbor(reader: Vec<u8>) -> Result<Self, String>
     where
         Self: DeserializeOwned + Sized,
@@ -21,7 +21,7 @@ impl VerifiablePresentation {
 }
 
 impl VerifiableCredential {
-    /// Serializes a verifiable structure into cbor
+    /// Serializes a VerifiableCredential structure into cbor
     pub fn serialize_cbor(&self) -> Result<Vec<u8>, ciborium::ser::Error<std::io::Error>>
     where
         Self: Serialize,
@@ -30,7 +30,7 @@ impl VerifiableCredential {
         ciborium::into_writer(self, &mut buf)?;
         Ok(buf)
     }
-    /// Deserializes cbor into a verifiable structure
+    /// Deserializes cbor into a VerifiableCredential structure
     pub fn deserialize_cbor(reader: Vec<u8>) -> Result<Self, String>
     where
         Self: DeserializeOwned + Sized,
