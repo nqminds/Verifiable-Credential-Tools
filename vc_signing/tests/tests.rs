@@ -1,11 +1,12 @@
 use serde_json::{json, Value};
+use vc_signing::verifiable_credential::SignedSchema;
 use vc_signing::{SignatureKeyPair, VerifiableCredential};
 
 fn vc() -> Value {
     json!({
         "@context": ["https://www.w3.org/ns/credentials/v2"],
         "credentialSchema": {
-            "id": "urn:uuid:ded1499c-c797-447a-8478-8d0fd7519834",
+            "id": "urn:uuid:9a2dc235-17a2-471c-b1f3-a8b29ed4a3d3",
             "type": "JsonSchema"
         },
         "credentialSubject": {
@@ -22,7 +23,7 @@ fn schema() -> Value {
     json!({
         "@context": ["https://www.w3.org/ns/credentials/v2"],
         "credentialSchema": {
-            "id": "urn:uuid:442ea47b-3b2a-4602-a721-4cc22bdae9ce",
+            "id": "https://json-schema.org/draft/2020-12/schema",
             "type": "JsonSchema"
         },
         "credentialSubject": {
@@ -52,7 +53,11 @@ fn basic_test() {
         private_key,
         public_key,
     } = SignatureKeyPair::new().unwrap();
-    let vc = VerifiableCredential::new(vc(), schema())
+    let schema_vc = VerifiableCredential::new(schema(), None)
+        .unwrap()
+        .sign(&private_key)
+        .unwrap();
+    let vc = VerifiableCredential::new(vc(), Some(SignedSchema::new(schema_vc, &public_key)))
         .unwrap()
         .sign(&private_key)
         .unwrap();
@@ -61,6 +66,21 @@ fn basic_test() {
 
 #[test]
 fn create_vc() {
-    let schema = schema().get("credentialSubject").unwrap().clone();
-    VerifiableCredential::create(json!({"id": "example_id"}), schema).unwrap();
+    let SignatureKeyPair {
+        private_key,
+        public_key,
+    } = SignatureKeyPair::new().unwrap();
+    let schema =
+        VerifiableCredential::create(schema().get("credentialSubject").unwrap().clone(), None)
+            .unwrap()
+            .sign(&private_key)
+            .unwrap();
+    let vc = VerifiableCredential::create(
+        json!({"id": "example_id"}),
+        Some(SignedSchema::new(schema, &public_key)),
+    )
+    .unwrap()
+    .sign(&private_key)
+    .unwrap();
+    assert!(vc.verify(&public_key).is_ok());
 }

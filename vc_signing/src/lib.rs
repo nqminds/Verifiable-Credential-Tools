@@ -6,11 +6,11 @@ use url::Url;
 #[cfg(target_family = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
 #[cfg(feature = "cbor")]
-mod cbor;
+pub mod cbor;
 #[cfg(feature = "protobuf")]
-mod protobuf;
-mod verifiable_credential;
-mod verifiable_presentation;
+pub mod protobuf;
+pub mod verifiable_credential;
+pub mod verifiable_presentation;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
@@ -106,15 +106,16 @@ pub struct Proof {
     proof_value: String,
 }
 
-#[cfg_attr(target_family = "wasm", wasm_bindgen)]
+#[cfg(not(target_family = "wasm"))]
 pub struct SignatureKeyPair {
-    #[cfg(not(target_family = "wasm"))]
     pub private_key: Vec<u8>,
-    #[cfg(not(target_family = "wasm"))]
     pub public_key: Vec<u8>,
-    #[cfg(target_family = "wasm")]
+}
+
+#[cfg(target_family = "wasm")]
+#[wasm_bindgen]
+pub struct SignatureKeyPair {
     private_key: Vec<u8>,
-    #[cfg(target_family = "wasm")]
     public_key: Vec<u8>,
 }
 
