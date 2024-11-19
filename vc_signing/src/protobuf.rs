@@ -1,4 +1,6 @@
 use crate::protobuf::verifiable_credentials::verifiable_presentation::RepeatedCredential;
+use base64::prelude::BASE64_STANDARD;
+use base64::Engine;
 use chrono::DateTime;
 use prost::Message;
 use std::str::FromStr;
@@ -13,6 +15,32 @@ use verifiable_credentials::{TypeStruct, VerifiableCredential, VerifiablePresent
 
 pub mod verifiable_credentials {
     include!(concat!(env!("OUT_DIR"), "/verifiable_credentials.rs"));
+}
+
+impl crate::VerifiablePresentation {
+    /// Serializes a VerifiablePresentation structure into protobuf
+    pub fn serialize_protobuf(self) -> Vec<u8> {
+        Into::<VerifiablePresentation>::into(self).encode_to_vec()
+    }
+    /// Deserializes protobuf into a VerifiablePresentation structure
+    pub fn deserialize_protobuf(reader: Vec<u8>) -> Result<Self, prost::DecodeError> {
+        Ok(Into::<Self>::into(VerifiablePresentation::decode(
+            reader.as_slice(),
+        )?))
+    }
+}
+
+impl crate::VerifiableCredential {
+    /// Serializes a VerifiableCredential structure into protobuf
+    pub fn serialize_protobuf(self) -> Vec<u8> {
+        Into::<VerifiableCredential>::into(self).encode_to_vec()
+    }
+    /// Deserializes protobuf into a VerifiableCredential structure
+    pub fn deserialize_protobuf(reader: Vec<u8>) -> Result<Self, prost::DecodeError> {
+        Ok(Into::<Self>::into(VerifiableCredential::decode(
+            reader.as_slice(),
+        )?))
+    }
 }
 
 impl From<VerifiablePresentation> for crate::VerifiablePresentation {
@@ -50,7 +78,7 @@ impl From<VerifiablePresentation> for crate::VerifiablePresentation {
             .unwrap(),
             cryptosuite: proof.cryptosuite,
             proof_purpose: proof.proof_purpose,
-            proof_value: proof.proof_value,
+            proof_value: BASE64_STANDARD.encode(proof.proof_value),
         });
 
         Self {
@@ -94,7 +122,7 @@ impl From<crate::VerifiablePresentation> for VerifiablePresentation {
             created: Some(prost_types::Timestamp::from_str(&proof.created.to_rfc3339()).unwrap()),
             cryptosuite: proof.cryptosuite,
             proof_purpose: proof.proof_purpose,
-            proof_value: proof.proof_value,
+            proof_value: BASE64_STANDARD.decode(proof.proof_value).unwrap(),
         });
 
         Self {
@@ -202,7 +230,7 @@ impl From<VerifiableCredential> for crate::VerifiableCredential {
             .unwrap(),
             cryptosuite: proof.cryptosuite,
             proof_purpose: proof.proof_purpose,
-            proof_value: proof.proof_value,
+            proof_value: BASE64_STANDARD.encode(proof.proof_value),
         });
 
         let vc_type = match vc.vc_type.unwrap() {
@@ -331,7 +359,7 @@ impl From<crate::VerifiableCredential> for VerifiableCredential {
             created: Some(prost_types::Timestamp::from_str(&proof.created.to_rfc3339()).unwrap()),
             cryptosuite: proof.cryptosuite,
             proof_purpose: proof.proof_purpose,
-            proof_value: proof.proof_value,
+            proof_value: BASE64_STANDARD.decode(proof.proof_value).unwrap(),
         });
 
         Self {
