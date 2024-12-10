@@ -5,12 +5,14 @@ use serde_json::Value;
 use url::Url;
 #[cfg(target_family = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
+pub mod builder;
 #[cfg(feature = "cbor")]
 pub mod cbor;
 #[cfg(feature = "protobuf")]
 pub mod protobuf;
 pub mod verifiable_credential;
 pub mod verifiable_presentation;
+pub use builder::VerifiableCredentialBuilder;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]

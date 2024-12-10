@@ -7,7 +7,7 @@ use std::{
     path::PathBuf,
 };
 use vc_signing::verifiable_credential::SignedSchema;
-use vc_signing::{SignatureKeyPair, VerifiableCredential};
+use vc_signing::{SignatureKeyPair, VerifiableCredential, VerifiableCredentialBuilder};
 
 #[derive(Parser)]
 struct Args {
@@ -26,6 +26,8 @@ enum Function {
         format: Format,
         #[clap(long, short)]
         generate: bool,
+        #[clap(long, requires = "generate")]
+        issuer: Option<String>,
     },
     SignSchema {
         vc_path: PathBuf,
@@ -34,6 +36,8 @@ enum Function {
         format: Format,
         #[clap(long, short)]
         generate: bool,
+        #[clap(long, requires = "generate")]
+        issuer: Option<String>,
     },
     Verify {
         vc_path: PathBuf,
@@ -85,17 +89,19 @@ fn main() -> Result<(), Box<dyn Error>> {
             output_path,
             format,
             generate,
+            issuer,
         } => {
             let vc: Value = from_str(&read_to_string(vc_path)?)?;
             let schema: Value = from_str(&read_to_string(schema_path)?)?;
             let vc = match generate {
-                true => VerifiableCredential::create(
-                    vc,
-                    Some(SignedSchema::new(
-                        VerifiableCredential::new(schema, None)?,
-                        &read(schema_key_path)?,
-                    )),
-                )?,
+                true => {
+                    let schema_str = schema.to_string();
+                    let mut builder = VerifiableCredentialBuilder::new(vc, &schema_str)?;
+                    if let Some(issuer) = issuer {
+                        builder = builder.issuer(issuer.parse()?);
+                    }
+                    builder.build()?
+                }
                 false => VerifiableCredential::new(
                     vc,
                     Some(SignedSchema::new(
@@ -113,10 +119,21 @@ fn main() -> Result<(), Box<dyn Error>> {
             output_path,
             format,
             generate,
+            issuer,
         } => {
             let schema: Value = from_str(&read_to_string(vc_path)?)?;
             let vc = match generate {
-                true => VerifiableCredential::create(schema, None)?,
+                true => {
+                    // let schema_str = schema.to_string();
+                    let mut builder = VerifiableCredentialBuilder::new(
+                        schema,
+                        "https://json-schema.org/draft/2020-12/schema",
+                    )?;
+                    if let Some(issuer) = issuer {
+                        builder = builder.issuer(issuer.parse()?);
+                    }
+                    builder.build()?
+                }
                 false => VerifiableCredential::new(schema, None)?,
             }
             .sign(&read(private_key_path)?)?;

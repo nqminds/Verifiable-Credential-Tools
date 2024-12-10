@@ -1,4 +1,5 @@
-use crate::{CredentialSchema, SchemaEnum, TypeEnum};
+use crate::VerifiableCredentialBuilder;
+use crate::{CredentialSchema, SchemaEnum};
 use crate::{Proof, VerifiableCredential};
 use base64::{prelude::BASE64_STANDARD, Engine};
 use chrono::Utc;
@@ -8,9 +9,6 @@ use serde::Serialize;
 use serde_json::{from_str, to_string};
 #[cfg(not(target_family = "wasm"))]
 use serde_json::{from_value, Value};
-use std::error::Error;
-use url::Url;
-use uuid::Uuid;
 #[cfg(target_family = "wasm")]
 use {
     serde::Serializer,
@@ -92,7 +90,7 @@ impl VerifiableCredential {
                 }
             }
             Some(schema) => {
-                if schema.vc.verify(&schema.public_key).is_ok() {
+                if schema.vc.verify(schema.public_key).is_ok() {
                     let validator = jsonschema::validator_for(&schema.vc.credential_subject)
                         .map_err(|e| e.to_string())?;
                     let errors: Vec<_> = validator
@@ -140,56 +138,22 @@ impl VerifiableCredential {
     where
         Self: DeserializeOwned,
     {
-        match create {
-            true => {
-                let create = |input, schema_id| -> Result<Self, Box<dyn Error>> {
-                    Ok(Self {
-                        context: vec![Url::parse("https://www.w3.org/ns/credentials/v2")?],
-                        id: Some(Url::parse(&format!("urn:uuid:{}", Uuid::new_v4()))?),
-                        vc_type: TypeEnum::Single("VerifiableCredential".to_string()),
-                        name: None,
-                        description: None,
-                        issuer: Url::parse(&format!("urn:uuid:{}", Uuid::new_v4()))?,
-                        valid_from: None,
-                        valid_until: None,
-                        credential_status: None,
-                        credential_schema: SchemaEnum::Single(CredentialSchema {
-                            id: Url::parse(schema_id)?,
-                            credential_type: "JsonSchema".to_string(),
-                        }),
-                        credential_subject: from_value(input)?,
-                        proof: None,
-                    })
-                };
-                match schema {
-                    None => Self::schema_check(
-                        create(
-                            verifiable_credential,
-                            "https://json-schema.org/draft/2020-12/schema",
-                        )
-                        .map_err(|e| e.to_string())?,
-                        None,
-                    ),
-                    Some(schema) => Self::schema_check(
-                        create(
-                            verifiable_credential,
-                            schema
-                                .vc
-                                .credential_subject
-                                .get("$id")
-                                .ok_or("No $id field in schema")?
-                                .as_str()
-                                .ok_or("$id is not str")?,
-                        )
-                        .map_err(|e| e.to_string())?,
-                        Some(schema),
-                    ),
-                }
-            }
-            false => Self::schema_check(
+        if create {
+            let builder = VerifiableCredentialBuilder::new(
+                verifiable_credential,
+                "https://json-schema.org/draft/2020-12/schema",
+            )
+            .map_err(|e| e.to_string())?;
+            let credential = match schema {
+                Some(schema) => builder.issuer(schema.vc.issuer.clone()).build()?,
+                None => builder.build()?,
+            };
+            Self::schema_check(credential, schema)
+        } else {
+            Self::schema_check(
                 from_value::<Self>(verifiable_credential).map_err(|e| e.to_string())?,
                 schema,
-            ),
+            )
         }
     }
     /// Signs a VerifiableCredential with the given private key
@@ -228,46 +192,14 @@ impl VerifiableCredential {
     #[cfg(not(target_family = "wasm"))]
     /// Creates a VerifiableCredential structure from json raw subject & schema with random UUIDs
     pub fn create(subject: Value, schema: Option<SignedSchema>) -> Result<Self, String> {
-        let create = |input, schema_id| -> Result<Self, Box<dyn Error>> {
-            Ok(Self {
-                context: vec![Url::parse("https://www.w3.org/ns/credentials/v2")?],
-                id: Some(Url::parse(&format!("urn:uuid:{}", Uuid::new_v4()))?),
-                vc_type: TypeEnum::Single("VerifiableCredential".to_string()),
-                name: None,
-                description: None,
-                issuer: Url::parse(&format!("urn:uuid:{}", Uuid::new_v4()))?,
-                valid_from: None,
-                valid_until: None,
-                credential_status: None,
-                credential_schema: SchemaEnum::Single(CredentialSchema {
-                    id: Url::parse(schema_id)?,
-                    credential_type: "JsonSchema".to_string(),
-                }),
-                credential_subject: input,
-                proof: None,
-            })
-        };
-        match schema {
-            None => Self::schema_check(
-                create(subject, "https://json-schema.org/draft/2020-12/schema")
-                    .map_err(|e| e.to_string())?,
-                None,
-            ),
-            Some(schema) => Self::schema_check(
-                create(
-                    subject,
-                    schema
-                        .vc
-                        .credential_subject
-                        .get("$id")
-                        .ok_or("No $id field in schema")?
-                        .as_str()
-                        .ok_or("$id is not str")?,
-                )
-                .map_err(|e| e.to_string())?,
-                Some(schema),
-            ),
-        }
+        let builder = VerifiableCredentialBuilder::new(
+            subject,
+            "https://json-schema.org/draft/2020-12/schema",
+        )
+        .map_err(|e| e.to_string())?;
+
+        let credential = builder.build().map_err(|e| e.to_string())?;
+        Self::schema_check(credential, schema)
     }
     #[cfg(target_family = "wasm")]
     /// Converts a VerifiableCredential to a JavaScript object
