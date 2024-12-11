@@ -28,6 +28,14 @@ enum Function {
         generate: bool,
         #[clap(long, requires = "generate")]
         issuer: Option<String>,
+        #[clap(long, requires = "generate")]
+        name: Option<String>,
+        #[clap(long, requires = "generate")]
+        description: Option<String>,
+        #[clap(long, requires = "generate")]
+        valid_from: Option<String>,
+        #[clap(long, requires = "generate")]
+        valid_until: Option<String>,
     },
     SignSchema {
         vc_path: PathBuf,
@@ -38,6 +46,14 @@ enum Function {
         generate: bool,
         #[clap(long, requires = "generate")]
         issuer: Option<String>,
+        #[clap(long, requires = "generate")]
+        name: Option<String>,
+        #[clap(long, requires = "generate")]
+        description: Option<String>,
+        #[clap(long, requires = "generate")]
+        valid_from: Option<String>,
+        #[clap(long, requires = "generate")]
+        valid_until: Option<String>,
     },
     Verify {
         vc_path: PathBuf,
@@ -90,6 +106,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             format,
             generate,
             issuer,
+            name,
+            description,
+            valid_from,
+            valid_until,
         } => {
             let vc: Value = from_str(&read_to_string(vc_path)?)?;
             let schema: Value = from_str(&read_to_string(schema_path)?)?;
@@ -100,6 +120,22 @@ fn main() -> Result<(), Box<dyn Error>> {
                     if let Some(issuer) = issuer {
                         builder = builder.issuer(issuer.parse()?);
                     }
+                    if let Some(name) = name {
+                        builder = builder.name(Some(name));
+                    }
+                    if let Some(description) = description {
+                        builder = builder.description(Some(description));
+                    }
+                    if let Some(valid_from) = valid_from {
+                        builder = builder
+                            .valid_from(Some(valid_from.parse::<chrono::DateTime<chrono::Utc>>()?));
+                    }
+                    if let Some(valid_until) = valid_until {
+                        builder = builder.valid_until(Some(
+                            valid_until.parse::<chrono::DateTime<chrono::Utc>>()?,
+                        ));
+                    }
+
                     builder.build()?
                 }
                 false => VerifiableCredential::new(
@@ -120,6 +156,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             format,
             generate,
             issuer,
+            name,
+            description,
+            valid_from,
+            valid_until,
         } => {
             let schema: Value = from_str(&read_to_string(vc_path)?)?;
             let vc = match generate {
@@ -132,6 +172,22 @@ fn main() -> Result<(), Box<dyn Error>> {
                     if let Some(issuer) = issuer {
                         builder = builder.issuer(issuer.parse()?);
                     }
+                    if let Some(name) = name {
+                        builder = builder.name(Some(name));
+                    }
+                    if let Some(description) = description {
+                        builder = builder.description(Some(description));
+                    }
+                    if let Some(valid_from) = valid_from {
+                        builder = builder
+                            .valid_from(Some(valid_from.parse::<chrono::DateTime<chrono::Utc>>()?));
+                    }
+                    if let Some(valid_until) = valid_until {
+                        builder = builder.valid_until(Some(
+                            valid_until.parse::<chrono::DateTime<chrono::Utc>>()?,
+                        ));
+                    }
+
                     builder.build()?
                 }
                 false => VerifiableCredential::new(schema, None)?,
