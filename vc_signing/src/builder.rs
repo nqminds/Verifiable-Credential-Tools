@@ -52,23 +52,23 @@ impl VerifiableCredentialBuilder {
         })
     }
 
-    pub fn name(mut self, name: Option<String>) -> Self {
-        self.name = name;
+    pub fn name(mut self, name: String) -> Self {
+        self.name = Some(name);
         self
     }
 
-    pub fn description(mut self, description: Option<String>) -> Self {
-        self.description = description;
+    pub fn description(mut self, description: String) -> Self {
+        self.description = Some(description);
         self
     }
 
-    pub fn valid_from(mut self, valid_from: Option<DateTime<Utc>>) -> Self {
-        self.valid_from = valid_from;
+    pub fn valid_from(mut self, valid_from: DateTime<Utc>) -> Self {
+        self.valid_from = Some(valid_from);
         self
     }
 
-    pub fn valid_until(mut self, valid_until: Option<DateTime<Utc>>) -> Self {
-        self.valid_until = valid_until;
+    pub fn valid_until(mut self, valid_until: DateTime<Utc>) -> Self {
+        self.valid_until = Some(valid_until);
         self
     }
 
@@ -77,8 +77,8 @@ impl VerifiableCredentialBuilder {
         self
     }
 
-    pub fn proof(mut self, proof: Option<Proof>) -> Self {
-        self.proof = proof;
+    pub fn proof(mut self, proof: Proof) -> Self {
+        self.proof = Some(proof);
         self
     }
 
@@ -87,8 +87,8 @@ impl VerifiableCredentialBuilder {
         self
     }
 
-    pub fn id(mut self, id: Option<Url>) -> Self {
-        self.id = id;
+    pub fn id(mut self, id: Url) -> Self {
+        self.id = Some(id);
         self
     }
 

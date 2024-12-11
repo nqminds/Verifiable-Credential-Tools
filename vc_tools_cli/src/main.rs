@@ -236,19 +236,19 @@ fn build_verifiable_credential(
     }
 
     if let Some(name) = name {
-        builder = builder.name(Some(name));
+        builder = builder.name(name);
     }
 
     if let Some(description) = description {
-        builder = builder.description(Some(description));
+        builder = builder.description(description);
     }
 
     if let Some(valid_from) = valid_from {
-        builder = builder.valid_from(Some(valid_from.parse::<chrono::DateTime<chrono::Utc>>()?));
+        builder = builder.valid_from(valid_from.parse::<chrono::DateTime<chrono::Utc>>()?);
     }
 
     if let Some(valid_until) = valid_until {
-        builder = builder.valid_until(Some(valid_until.parse::<chrono::DateTime<chrono::Utc>>()?));
+        builder = builder.valid_until(valid_until.parse::<chrono::DateTime<chrono::Utc>>()?);
     }
 
     builder.build().map_err(|e| e.into())
