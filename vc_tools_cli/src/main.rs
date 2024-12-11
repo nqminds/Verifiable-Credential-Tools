@@ -115,28 +115,22 @@ fn main() -> Result<(), Box<dyn Error>> {
             let schema: Value = from_str(&read_to_string(schema_path)?)?;
             let vc = match generate {
                 true => {
-                    let schema_str = schema.to_string();
-                    let mut builder = VerifiableCredentialBuilder::new(vc, &schema_str)?;
-                    if let Some(issuer) = issuer {
-                        builder = builder.issuer(issuer.parse()?);
-                    }
-                    if let Some(name) = name {
-                        builder = builder.name(Some(name));
-                    }
-                    if let Some(description) = description {
-                        builder = builder.description(Some(description));
-                    }
-                    if let Some(valid_from) = valid_from {
-                        builder = builder
-                            .valid_from(Some(valid_from.parse::<chrono::DateTime<chrono::Utc>>()?));
-                    }
-                    if let Some(valid_until) = valid_until {
-                        builder = builder.valid_until(Some(
-                            valid_until.parse::<chrono::DateTime<chrono::Utc>>()?,
-                        ));
-                    }
+                    // Get id from schema
+                    let id = schema
+                        .get("id")
+                        .ok_or("Schema must have an id field")?
+                        .as_str()
+                        .ok_or("Schema id must be a string")?;
 
-                    builder.build()?
+                    build_verifiable_credential(
+                        vc,
+                        id,
+                        issuer,
+                        name,
+                        description,
+                        valid_from,
+                        valid_until,
+                    )?
                 }
                 false => VerifiableCredential::new(
                     vc,
@@ -165,30 +159,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             let vc = match generate {
                 true => {
                     // let schema_str = schema.to_string();
-                    let mut builder = VerifiableCredentialBuilder::new(
+                    build_verifiable_credential(
                         schema,
                         "https://json-schema.org/draft/2020-12/schema",
-                    )?;
-                    if let Some(issuer) = issuer {
-                        builder = builder.issuer(issuer.parse()?);
-                    }
-                    if let Some(name) = name {
-                        builder = builder.name(Some(name));
-                    }
-                    if let Some(description) = description {
-                        builder = builder.description(Some(description));
-                    }
-                    if let Some(valid_from) = valid_from {
-                        builder = builder
-                            .valid_from(Some(valid_from.parse::<chrono::DateTime<chrono::Utc>>()?));
-                    }
-                    if let Some(valid_until) = valid_until {
-                        builder = builder.valid_until(Some(
-                            valid_until.parse::<chrono::DateTime<chrono::Utc>>()?,
-                        ));
-                    }
-
-                    builder.build()?
+                        issuer,
+                        name,
+                        description,
+                        valid_from,
+                        valid_until,
+                    )?
                 }
                 false => VerifiableCredential::new(schema, None)?,
             }
@@ -238,4 +217,39 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     };
     Ok(())
+}
+
+// Function to remove duplication of building logic
+fn build_verifiable_credential(
+    schema: Value,
+    id: &str,
+    issuer: Option<String>,
+    name: Option<String>,
+    description: Option<String>,
+    valid_from: Option<String>,
+    valid_until: Option<String>,
+) -> Result<VerifiableCredential, Box<dyn Error>> {
+    let mut builder = VerifiableCredentialBuilder::new(schema, id)?;
+
+    if let Some(issuer) = issuer {
+        builder = builder.issuer(issuer.parse()?);
+    }
+
+    if let Some(name) = name {
+        builder = builder.name(Some(name));
+    }
+
+    if let Some(description) = description {
+        builder = builder.description(Some(description));
+    }
+
+    if let Some(valid_from) = valid_from {
+        builder = builder.valid_from(Some(valid_from.parse::<chrono::DateTime<chrono::Utc>>()?));
+    }
+
+    if let Some(valid_until) = valid_until {
+        builder = builder.valid_until(Some(valid_until.parse::<chrono::DateTime<chrono::Utc>>()?));
+    }
+
+    builder.build().map_err(|e| e.into())
 }
