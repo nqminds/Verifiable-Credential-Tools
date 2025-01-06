@@ -50,10 +50,9 @@ async fn fetch_raw_content(
         Err(format!("Failed to fetch raw content: {}", response.status()).into())
     }
 }
-
 /// Extract repository parts, branch, and file path from the GitHub URL and construct the API URL
 fn construct_github_api_url(schema_url: &str) -> Result<String, Box<dyn Error>> {
-    fn extract_repo_and_branch(schema_url: &str, start: &str) -> Result<(&str, &str), Box<dyn Error>> {
+    fn extract_repo_and_branch<'a>(schema_url: &'a str, start: &'a str) -> Result<(&'a str, &'a str), Box<dyn Error>> {
         let repo_start = schema_url.find("github.com/").ok_or("Invalid GitHub URL")? + "github.com/".len();
         let repo_end = schema_url.find(start).ok_or("Invalid GitHub URL: missing '/blob/' or '/tree/'")?;
         let repo = &schema_url[repo_start..repo_end];
@@ -61,9 +60,9 @@ fn construct_github_api_url(schema_url: &str) -> Result<String, Box<dyn Error>> 
         Ok((repo, branch_and_path))
     }
 
-    let (repo, branch_and_path) = if let Some(blob_start) = schema_url.find("/blob/") {
+    let (repo, branch_and_path) = if schema_url.find("/blob/").is_some() {
         extract_repo_and_branch(schema_url, "/blob/")?
-    } else if let Some(tree_start) = schema_url.find("/tree/") {
+    } else if schema_url.find("/tree/").is_some() {
         extract_repo_and_branch(schema_url, "/tree/")?
     } else {
         return Err("Invalid GitHub URL: missing '/blob/' or '/tree/'".into());
