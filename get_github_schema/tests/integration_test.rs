@@ -32,3 +32,21 @@ async fn test_get_identity_schema() {
     // Assert that the schema is a JSON object
     assert!(schema.is_object(), "Expected schema to be a JSON object");
 }
+#[tokio::test]
+async fn test_get_schema_schema() {
+    let url = "https://github.com/nqminds/ClaimCascade/blob/main/packages/schemas/src/schema.json";
+    let schema = get_schema(url).await.expect("Failed to fetch schema");
+
+    // Assert that the schema is a JSON object
+    assert!(schema.is_object(), "Expected schema to be a JSON object");
+}
+
+
+#[tokio::test]
+async fn test_get_schema_schema_again() {
+    let url = "https://github.com/nqminds/ClaimCascade/blob/main/packages/schemas/src/schema.json";
+    let schema = get_schema(url).await.expect("Failed to fetch schema");
+
+    // Assert that the schema is a JSON object
+    assert!(schema.is_object(), "Expected schema to be a JSON object");
+}
