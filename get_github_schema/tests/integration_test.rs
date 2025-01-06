@@ -2,7 +2,7 @@ use get_github_schema::get_schema;
 
 #[test]
 fn test_get_schema() {
-    let url = "https://github.com/nqminds/ClaimCascade/tree/event_store_rework/packages/schemas/src/fact.yaml";
+    let url = "https://github.com/nqminds/claim-cascade-schemas/blob/master/src/schema.json";
     let schema = get_schema(url).expect("Failed to fetch schema");
 
     // Assert that the schema is a JSON object
