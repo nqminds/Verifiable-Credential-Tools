@@ -26,7 +26,7 @@ pub async fn get_schema(schema_url: &str) -> Result<Value, Box<dyn Error>> {
         return Err(format!("Failed to fetch file metadata: {}", response.status()).into());
     }
 
-    let json_response: Value = response.json()?;
+    let json_response: Value = response.json().await?;
     let download_url = json_response["download_url"]
         .as_str()
         .ok_or("download_url field missing or not a string")?;
@@ -45,7 +45,7 @@ async fn fetch_raw_content(
 ) -> Result<String, Box<dyn Error>> {
     let response = client.get(url).send().await?;
     if response.status().is_success() {
-        Ok(response.text()?)
+        Ok(response.text().await?)
     } else {
         Err(format!("Failed to fetch raw content: {}", response.status()).into())
     }
