@@ -4,7 +4,7 @@ use std::env;
 use std::error::Error;
 
 /// Fetches and parses the schema from the given GitHub URL
-pub fn get_schema(schema_url: &str) -> Result<Value, Box<dyn Error>> {
+pub async fn get_schema(schema_url: &str) -> Result<Value, Box<dyn Error>> {
     let api_url = construct_github_api_url(schema_url)?;
 
     // Retrieve GitHub token from environment variable
@@ -12,7 +12,7 @@ pub fn get_schema(schema_url: &str) -> Result<Value, Box<dyn Error>> {
         env::var("GITHUB_TOKEN").map_err(|_| "GITHUB_TOKEN environment variable not set")?;
 
     // Set up HTTP client with necessary headers
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::Client::new();
     let mut headers = HeaderMap::new();
     headers.insert(
         AUTHORIZATION,
@@ -21,7 +21,7 @@ pub fn get_schema(schema_url: &str) -> Result<Value, Box<dyn Error>> {
     headers.insert(USER_AGENT, HeaderValue::from_static("rust-client"));
 
     // Fetch file metadata using the GitHub API
-    let response = client.get(api_url).headers(headers).send()?;
+    let response = client.get(api_url).headers(headers).send().await?;
     if !response.status().is_success() {
         return Err(format!("Failed to fetch file metadata: {}", response.status()).into());
     }
@@ -32,18 +32,18 @@ pub fn get_schema(schema_url: &str) -> Result<Value, Box<dyn Error>> {
         .ok_or("download_url field missing or not a string")?;
 
     // Fetch the raw content from the download URL
-    let raw_content = fetch_raw_content(&client, download_url)?;
+    let raw_content = fetch_raw_content(&client, download_url).await?;
 
     // Parse YAML content into a JSON Value
     serde_yaml::from_str(&raw_content).map_err(Into::into)
 }
 
 /// Fetch raw content from a given URL
-fn fetch_raw_content(
-    client: &reqwest::blocking::Client,
+async fn fetch_raw_content(
+    client: &reqwest::Client,
     url: &str,
 ) -> Result<String, Box<dyn Error>> {
-    let response = client.get(url).send()?;
+    let response = client.get(url).send().await?;
     if response.status().is_success() {
         Ok(response.text()?)
     } else {
