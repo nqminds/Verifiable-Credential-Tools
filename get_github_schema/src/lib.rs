@@ -55,17 +55,29 @@ async fn fetch_raw_content(
 fn construct_github_api_url(schema_url: &str) -> Result<String, Box<dyn Error>> {
     let repo_start =
         schema_url.find("github.com/").ok_or("Invalid GitHub URL")? + "github.com/".len();
-    let repo_end = schema_url[repo_start..]
-        .find("/blob/")
-        .ok_or("Invalid GitHub URL: missing '/blob/'")?
-        + repo_start;
-    let repo = &schema_url[repo_start..repo_end];
+    
+    let (repo, branch_and_path) = if let Some(blob_start) = schema_url.find("/blob/") {
+        let repo_end = blob_start;
+        let repo = &schema_url[repo_start..repo_end];
 
-    let blob_start = schema_url.find("/blob/").unwrap() + "/blob/".len();
-    let branch_and_path = &schema_url[blob_start..];
-    let path_start = branch_and_path.find('/').unwrap() + blob_start;
-    let branch = &schema_url[blob_start..path_start];
-    let file_path = &schema_url[path_start + 1..];
+        let blob_start = blob_start + "/blob/".len();
+        let branch_and_path = &schema_url[blob_start..];
+        (repo, branch_and_path)
+    } else if let Some(tree_start) = schema_url.find("/tree/") {
+        let repo_end = tree_start;
+        let repo = &schema_url[repo_start..repo_end];
+
+        let tree_start = tree_start + "/tree/".len();
+        let branch_and_path = &schema_url[tree_start..];
+        (repo, branch_and_path)
+    } else {
+        return Err("Invalid GitHub URL: missing '/blob/' or '/tree/'".into());
+    };
+
+    let path_start = branch_and_path.find('/')
+        .ok_or("Invalid GitHub URL: missing file path")?;
+    let branch = &branch_and_path[..path_start];
+    let file_path = &branch_and_path[path_start + 1..];
 
     Ok(format!(
         "https://api.github.com/repos/{}/contents/{}?ref={}",

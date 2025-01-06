@@ -23,3 +23,12 @@ async fn test_get_schema_fail() {
         "Expected the request to fail, but it succeeded."
     );
 }
+
+#[tokio::test]
+async fn test_get_identity_schema() {
+    let url = "https://github.com/nqminds/ClaimCascade/tree/main/packages/schemas/src/identity.json";
+    let schema = get_schema(url).await.expect("Failed to fetch schema");
+
+    // Assert that the schema is a JSON object
+    assert!(schema.is_object(), "Expected schema to be a JSON object");
+}
