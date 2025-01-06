@@ -1,3 +1,3 @@
 {
-  "conventionalCommits.scopes": ["get_github_schema library"]
+  "conventionalCommits.scopes": ["get_github_schema library", "cli"]
 }

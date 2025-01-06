@@ -7,7 +7,7 @@ use std::{
     path::PathBuf,
 };
 use vc_signing::verifiable_credential::SignedSchema;
-use vc_signing::{SignatureKeyPair, VerifiableCredential};
+use vc_signing::{SignatureKeyPair, VerifiableCredential, VerifiableCredentialBuilder};
 
 #[derive(Parser)]
 struct Args {
@@ -26,6 +26,16 @@ enum Function {
         format: Format,
         #[clap(long, short)]
         generate: bool,
+        #[clap(long, requires = "generate")]
+        issuer: Option<String>,
+        #[clap(long, requires = "generate")]
+        name: Option<String>,
+        #[clap(long, requires = "generate")]
+        description: Option<String>,
+        #[clap(long, requires = "generate")]
+        valid_from: Option<String>,
+        #[clap(long, requires = "generate")]
+        valid_until: Option<String>,
     },
     SignSchema {
         vc_path: PathBuf,
@@ -34,6 +44,16 @@ enum Function {
         format: Format,
         #[clap(long, short)]
         generate: bool,
+        #[clap(long, requires = "generate")]
+        issuer: Option<String>,
+        #[clap(long, requires = "generate")]
+        name: Option<String>,
+        #[clap(long, requires = "generate")]
+        description: Option<String>,
+        #[clap(long, requires = "generate")]
+        valid_from: Option<String>,
+        #[clap(long, requires = "generate")]
+        valid_until: Option<String>,
     },
     Verify {
         vc_path: PathBuf,
@@ -85,17 +105,33 @@ fn main() -> Result<(), Box<dyn Error>> {
             output_path,
             format,
             generate,
+            issuer,
+            name,
+            description,
+            valid_from,
+            valid_until,
         } => {
             let vc: Value = from_str(&read_to_string(vc_path)?)?;
             let schema: Value = from_str(&read_to_string(schema_path)?)?;
             let vc = match generate {
-                true => VerifiableCredential::create(
-                    vc,
-                    Some(SignedSchema::new(
-                        VerifiableCredential::new(schema, None)?,
-                        &read(schema_key_path)?,
-                    )),
-                )?,
+                true => {
+                    // Get id from schema
+                    let id = schema
+                        .get("id")
+                        .ok_or("Schema must have an id field")?
+                        .as_str()
+                        .ok_or("Schema id must be a string")?;
+
+                    build_verifiable_credential(
+                        vc,
+                        id,
+                        issuer,
+                        name,
+                        description,
+                        valid_from,
+                        valid_until,
+                    )?
+                }
                 false => VerifiableCredential::new(
                     vc,
                     Some(SignedSchema::new(
@@ -113,10 +149,26 @@ fn main() -> Result<(), Box<dyn Error>> {
             output_path,
             format,
             generate,
+            issuer,
+            name,
+            description,
+            valid_from,
+            valid_until,
         } => {
             let schema: Value = from_str(&read_to_string(vc_path)?)?;
             let vc = match generate {
-                true => VerifiableCredential::create(schema, None)?,
+                true => {
+                    // let schema_str = schema.to_string();
+                    build_verifiable_credential(
+                        schema,
+                        "https://json-schema.org/draft/2020-12/schema",
+                        issuer,
+                        name,
+                        description,
+                        valid_from,
+                        valid_until,
+                    )?
+                }
                 false => VerifiableCredential::new(schema, None)?,
             }
             .sign(&read(private_key_path)?)?;
@@ -165,4 +217,39 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     };
     Ok(())
+}
+
+// Function to remove duplication of building logic
+fn build_verifiable_credential(
+    schema: Value,
+    id: &str,
+    issuer: Option<String>,
+    name: Option<String>,
+    description: Option<String>,
+    valid_from: Option<String>,
+    valid_until: Option<String>,
+) -> Result<VerifiableCredential, Box<dyn Error>> {
+    let mut builder = VerifiableCredentialBuilder::new(schema, id)?;
+
+    if let Some(issuer) = issuer {
+        builder = builder.issuer(issuer.parse()?);
+    }
+
+    if let Some(name) = name {
+        builder = builder.name(name);
+    }
+
+    if let Some(description) = description {
+        builder = builder.description(description);
+    }
+
+    if let Some(valid_from) = valid_from {
+        builder = builder.valid_from(valid_from.parse::<chrono::DateTime<chrono::Utc>>()?);
+    }
+
+    if let Some(valid_until) = valid_until {
+        builder = builder.valid_until(valid_until.parse::<chrono::DateTime<chrono::Utc>>()?);
+    }
+
+    builder.build().map_err(|e| e.into())
 }
