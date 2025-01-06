@@ -3,15 +3,15 @@ use serde_json::Value;
 use std::env;
 use std::error::Error;
 
-// Fetches and parses the schema from the given GitHub URL
+/// Fetches and parses the schema from the given GitHub URL
 pub fn get_schema(schema_url: &str) -> Result<Value, Box<dyn Error>> {
-    let url = get_api_url(schema_url);
+    let api_url = construct_github_api_url(schema_url)?;
 
-    // Retrieve GitHub token from environment variable; return an error if not found
+    // Retrieve GitHub token from environment variable
     let token =
         env::var("GITHUB_TOKEN").map_err(|_| "GITHUB_TOKEN environment variable not set")?;
 
-    // Set up HTTP client with necessary headers (Authorization and User-Agent)
+    // Set up HTTP client with necessary headers
     let client = reqwest::blocking::Client::new();
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -20,14 +20,12 @@ pub fn get_schema(schema_url: &str) -> Result<Value, Box<dyn Error>> {
     );
     headers.insert(USER_AGENT, HeaderValue::from_static("rust-client"));
 
-    // Send request to get metadata of the file (JSON format expected)
-    let response = client.get(url).headers(headers).send()?;
+    // Fetch file metadata using the GitHub API
+    let response = client.get(api_url).headers(headers).send()?;
     if !response.status().is_success() {
-        // Return an error if the request was not successful
         return Err(format!("Failed to fetch file metadata: {}", response.status()).into());
     }
 
-    // Parse the JSON response to get the download_url field
     let json_response: Value = response.json()?;
     let download_url = json_response["download_url"]
         .as_str()
@@ -36,55 +34,41 @@ pub fn get_schema(schema_url: &str) -> Result<Value, Box<dyn Error>> {
     // Fetch the raw content from the download URL
     let raw_content = fetch_raw_content(&client, download_url)?;
 
-    // Parse the fetched YAML content into a JSON Value and return it
-    serde_yaml::from_str(&raw_content).map_err(|e| e.into())
+    // Parse YAML content into a JSON Value
+    serde_yaml::from_str(&raw_content).map_err(Into::into)
 }
 
-// Helper function to fetch raw content from a given URL
+/// Fetch raw content from a given URL
 fn fetch_raw_content(
     client: &reqwest::blocking::Client,
     url: &str,
 ) -> Result<String, Box<dyn Error>> {
-    // Send request to the download URL
     let response = client.get(url).send()?;
     if response.status().is_success() {
-        // Return the raw text content if successful
         Ok(response.text()?)
     } else {
-        // Return an error if the request failed
         Err(format!("Failed to fetch raw content: {}", response.status()).into())
     }
 }
 
-// Extract repository parts from the URL
-fn extract_repo_parts(url: &str) -> &str {
-    let start = url.find("github.com/").unwrap() + "github.com/".len();
-    let end = url.find("/tree/").unwrap();
-    &url[start..end]
-}
+/// Extract repository parts, branch, and file path from the GitHub URL and construct the API URL
+fn construct_github_api_url(schema_url: &str) -> Result<String, Box<dyn Error>> {
+    let repo_start =
+        schema_url.find("github.com/").ok_or("Invalid GitHub URL")? + "github.com/".len();
+    let repo_end = schema_url[repo_start..]
+        .find("/blob/")
+        .ok_or("Invalid GitHub URL: missing '/blob/'")?
+        + repo_start;
+    let repo = &schema_url[repo_start..repo_end];
 
-// Extract file path from the URL
-fn extract_file_path(url: &str) -> &str {
-    let start = url.find("/tree/").unwrap() + "/tree/".len();
-    let file_path_start = url[start..].find('/').unwrap() + start + 1;
-    &url[file_path_start..]
-}
+    let blob_start = schema_url.find("/blob/").unwrap() + "/blob/".len();
+    let branch_and_path = &schema_url[blob_start..];
+    let path_start = branch_and_path.find('/').unwrap() + blob_start;
+    let branch = &schema_url[blob_start..path_start];
+    let file_path = &schema_url[path_start + 1..];
 
-// Extract branch name from the URL
-fn extract_branch(url: &str) -> &str {
-    let start = url.find("/tree/").unwrap() + "/tree/".len();
-    let end = url[start..].find('/').unwrap() + start;
-    &url[start..end]
-}
-
-// Generate the GitHub API URL for the raw file content
-fn get_api_url(schema_url: &str) -> String {
-    let repo = extract_repo_parts(schema_url);
-    let file_path = extract_file_path(schema_url);
-    let branch = extract_branch(schema_url);
-
-    format!(
+    Ok(format!(
         "https://api.github.com/repos/{}/contents/{}?ref={}",
         repo, file_path, branch
-    )
+    ))
 }
